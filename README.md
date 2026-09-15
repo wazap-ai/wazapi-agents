@@ -59,12 +59,12 @@ empresa.
 
 ## O que tem aqui
 
-| Caminho | O que é |
-| --- | --- |
-| `skills/wazapi/` | A skill: `SKILL.md` + `reference/*.md` |
-| `dist/` | `AGENTS.md`, `GEMINI.md` e o índice `wazapi-mcp-tools.json` |
-| `plugin.json`, `mcp.json` | Manifesto Agent Plugins 1.0 |
-| `.claude-plugin/` | Manifesto e marketplace do Claude Code |
+| Caminho                   | O que é                                                     |
+| ------------------------- | ----------------------------------------------------------- |
+| `skills/wazapi/`          | A skill: `SKILL.md` + `reference/*.md`                      |
+| `dist/`                   | `AGENTS.md`, `GEMINI.md` e o índice `wazapi-mcp-tools.json` |
+| `plugin.json`, `mcp.json` | Manifesto Agent Plugins 1.0                                 |
+| `.claude-plugin/`         | Manifesto e marketplace do Claude Code                      |
 
 ## Este repositório é gerado
 

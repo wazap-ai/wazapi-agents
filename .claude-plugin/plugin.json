@@ -15,11 +15,5 @@
     "inbox",
     "crm",
     "chatbot"
-  ],
-  "mcpServers": {
-    "wazapi": {
-      "type": "http",
-      "url": "https://wazapi.io/mcp"
-    }
-  }
+  ]
 }

@@ -1,0 +1,510 @@
+{
+  "server": "wazapi-mcp",
+  "endpoint": "https://wazapi.io/mcp",
+  "transport": "streamable-http",
+  "sensitiveScopes": [
+    "whatsapp:credentials"
+  ],
+  "tools": [
+    {
+      "name": "get_session_context",
+      "category": "session",
+      "summary": "Identifies who you are acting as and which company you are inside.",
+      "scope": null,
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_flow_block_types",
+      "category": "flows",
+      "summary": "Lists every block type the flow builder supports, with provider compatibility.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_flow_block_schema",
+      "category": "flows",
+      "summary": "Returns the field-level schema and constraints for one block type.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_flow_builder_context",
+      "category": "flows",
+      "summary": "Returns the tenant resources a flow can reference: flows, custom fields, groups, agents, approved templates and tags.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_flows",
+      "category": "flows",
+      "summary": "Lists the chatbot flows of the company, with node and edge counts.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_flow",
+      "category": "flows",
+      "summary": "Fetches one flow with its full node and edge graph.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_flow",
+      "category": "flows",
+      "summary": "Creates an empty draft flow containing only the starting block.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `flow.created` audit entry."
+      ]
+    },
+    {
+      "name": "update_flow_graph",
+      "category": "flows",
+      "summary": "Replaces the entire node and edge graph of a flow.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Replaces the whole graph. Nodes and edges absent from your payload are deleted.",
+        "Writes a `flow.graph.saved` audit entry."
+      ]
+    },
+    {
+      "name": "validate_flow_graph",
+      "category": "flows",
+      "summary": "Runs the full graph validation without persisting anything.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_flow_status",
+      "category": "flows",
+      "summary": "Switches a flow between draft and active.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "An active flow starts responding to real customers immediately.",
+        "Writes a `flow.status.toggled` audit entry."
+      ]
+    },
+    {
+      "name": "execute_flow",
+      "category": "flows",
+      "summary": "Starts an active flow for one contact right now, without waiting for a keyword.",
+      "scope": "flows:execute",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "The contact starts receiving the flow messages immediately.",
+        "Any flow session the contact already had is marked `superseded`.",
+        "Writes a `flow.executed` audit entry."
+      ]
+    },
+    {
+      "name": "list_contacts",
+      "category": "contacts",
+      "summary": "Lists contacts, optionally filtered by a name or phone search.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_contact",
+      "category": "contacts",
+      "summary": "Fetches one contact by uuid, with tags and custom fields.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_conversations",
+      "category": "conversations",
+      "summary": "Lists conversations, filterable by status and by a contact search.",
+      "scope": "conversations:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_conversation",
+      "category": "conversations",
+      "summary": "Fetches one conversation with contact, assignee and channel.",
+      "scope": "conversations:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_messages",
+      "category": "messaging",
+      "summary": "Returns the most recent messages of a conversation, oldest first.",
+      "scope": "messages:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "send_text_message",
+      "category": "messaging",
+      "summary": "Sends a free-text reply inside an existing conversation.",
+      "scope": "messages:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Sets the conversation status to `pending`.",
+        "Assigns the conversation to the token owner, taking it from whoever had it.",
+        "Ends the AI agent parked on the conversation, if there is one. The flow session closes as a handoff and the bot does not come back on the next inbound message.",
+        "Writes a `conversation.reply.sent` audit entry."
+      ]
+    },
+    {
+      "name": "send_product_message",
+      "category": "messaging",
+      "summary": "Sends buyable product card(s) from the Meta catalog in a WhatsApp conversation.",
+      "scope": "messages:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Sets the conversation status to `pending`.",
+        "Assigns the conversation to the token owner.",
+        "Ends the AI agent parked on the conversation, exactly like `send_text_message`.",
+        "Writes a `conversation.product.sent` audit entry."
+      ]
+    },
+    {
+      "name": "get_catalog_status",
+      "category": "store",
+      "summary": "Shows the Meta catalog connection, WABA link, sync counts, and rejected products.",
+      "scope": "store:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_channels",
+      "category": "directory",
+      "summary": "Lists the WhatsApp, Instagram and Messenger channels connected to the company.",
+      "scope": "whatsapp:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_whatsapp_config",
+      "category": "whatsapp",
+      "summary": "Returns the current WhatsApp channel configuration.",
+      "scope": "whatsapp:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "configure_whatsapp",
+      "category": "whatsapp",
+      "summary": "Rewrites the WhatsApp Cloud API credentials of the company.",
+      "scope": "whatsapp:credentials",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Validates against Meta and, on success, repoints the entire WhatsApp channel of the company.",
+        "Attempts a confirmation message to the actor.",
+        "Writes a `whatsapp.channel.connected` or `.updated` audit entry."
+      ]
+    },
+    {
+      "name": "create_contact",
+      "category": "contacts",
+      "summary": "Creates a contact.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `contact.created` audit entry."
+      ]
+    },
+    {
+      "name": "update_contact",
+      "category": "contacts",
+      "summary": "Updates the name, tags or custom fields of a contact.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `contact.updated` audit entry."
+      ]
+    },
+    {
+      "name": "list_tags",
+      "category": "contacts",
+      "summary": "Lists the tag definitions of the company.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_tag",
+      "category": "contacts",
+      "summary": "Creates a tag definition in the company.",
+      "scope": "tags:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `tag.created` audit entry."
+      ]
+    },
+    {
+      "name": "list_custom_field_definitions",
+      "category": "contacts",
+      "summary": "Lists the custom field definitions, with key, type and whether they are required.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_conversation_status",
+      "category": "conversations",
+      "summary": "Moves a conversation between open, pending and resolved.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Writes a conversation audit entry naming the new status.",
+        "With `crmStageUuid`, also moves (or creates) the contact CRM opportunity and writes a `crm.opportunity.moved`/`.created` entry."
+      ]
+    },
+    {
+      "name": "assign_conversation",
+      "category": "conversations",
+      "summary": "Assigns a conversation to an agent, a group, or neither.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `conversation.assigned` audit entry."
+      ]
+    },
+    {
+      "name": "list_groups",
+      "category": "directory",
+      "summary": "Lists the support groups of the company.",
+      "scope": "groups:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_agents",
+      "category": "directory",
+      "summary": "Lists the users of the company with the uuids used for assignment.",
+      "scope": "users:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_whatsapp_templates",
+      "category": "whatsapp",
+      "summary": "Lists Meta message templates, defaulting to the approved ones.",
+      "scope": "whatsapp:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_whatsapp_template",
+      "category": "whatsapp",
+      "summary": "Submits a new message template to Meta for review.",
+      "scope": "whatsapp:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Sends the template to Meta. Submissions are visible to Meta review and count against the account.",
+        "Writes a `whatsapp.template.created` audit entry."
+      ]
+    },
+    {
+      "name": "send_template_message",
+      "category": "messaging",
+      "summary": "Sends an approved Meta template, opening the conversation if needed.",
+      "scope": "messages:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Assigns the conversation to the token owner.",
+        "Creates the contact and the conversation when addressed by `phone` and they do not exist.",
+        "Writes a `conversation.template.sent` audit entry."
+      ]
+    },
+    {
+      "name": "list_crm_groups",
+      "category": "crm",
+      "summary": "Lists the groups whose CRM pipelines the actor can access.",
+      "scope": "crm:read",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_crm_board",
+      "category": "crm",
+      "summary": "Returns the full Kanban board of a group: stages and their opportunities.",
+      "scope": "crm:read",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_crm_metrics",
+      "category": "crm",
+      "summary": "Returns aggregated pipeline numbers: open value, overdue, won this month.",
+      "scope": "crm:read",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_crm_opportunities",
+      "category": "crm",
+      "summary": "Lists opportunities in a pipeline, filterable by stage, assignee, due state and text.",
+      "scope": "crm:read",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_crm_opportunity",
+      "category": "crm",
+      "summary": "Fetches one opportunity by uuid.",
+      "scope": "crm:read",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_crm_opportunity",
+      "category": "crm",
+      "summary": "Creates an opportunity in a pipeline stage.",
+      "scope": "crm:write",
+      "requiresPlan": "crm",
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `crm.opportunity.created` audit entry."
+      ]
+    },
+    {
+      "name": "move_crm_opportunity",
+      "category": "crm",
+      "summary": "Moves an opportunity to another stage, including the terminal won and lost stages.",
+      "scope": "crm:write",
+      "requiresPlan": "crm",
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `crm.opportunity.moved` or `.closed` audit entry."
+      ]
+    },
+    {
+      "name": "get_storefront_summary",
+      "category": "store",
+      "summary": "Returns the storefront configuration, links, categories, shipping options and products.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_store_products",
+      "category": "store",
+      "summary": "Lists products, filterable by category, active state and text.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_store_product",
+      "category": "store",
+      "summary": "Fetches one product with its variants.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_store_orders",
+      "category": "store",
+      "summary": "Lists store orders, filterable by status.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_store_order",
+      "category": "store",
+      "summary": "Fetches one order with its item snapshot.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_store_metrics",
+      "category": "store",
+      "summary": "Returns sales metrics for a period.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_store_order_status",
+      "category": "store",
+      "summary": "Advances an order along its status machine.",
+      "scope": "store:write",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_store_product",
+      "category": "store",
+      "summary": "Creates a product, optionally with variants.",
+      "scope": "store:write",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_store_product",
+      "category": "store",
+      "summary": "Updates a product and replaces its variant list.",
+      "scope": "store:write",
+      "requiresPlan": "storefront",
+      "mutates": true,
+      "sideEffects": [
+        "Variants missing from the payload are deleted."
+      ]
+    }
+  ]
+}

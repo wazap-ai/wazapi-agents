@@ -1,0 +1,16 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "wazapi",
+  "version": "1.0.0",
+  "description": "Operates a Wazapi WhatsApp workspace over MCP: conversations, contacts, chatbot flows, CRM, storefront and WhatsApp templates.",
+  "homepage": "https://wazapi.io",
+  "repository": "https://github.com/wazap-ai/wazapi-agents",
+  "license": "MIT",
+  "keywords": [
+    "whatsapp",
+    "wazapi",
+    "inbox",
+    "crm",
+    "chatbot"
+  ]
+}

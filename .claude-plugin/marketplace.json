@@ -1,0 +1,16 @@
+{
+  "name": "wazapi",
+  "description": "Skills oficiais do Wazapi para agentes de IA.",
+  "owner": {
+    "name": "Wazapi",
+    "url": "https://wazapi.io"
+  },
+  "plugins": [
+    {
+      "name": "wazapi",
+      "source": "./",
+      "description": "Operates a Wazapi WhatsApp workspace over MCP: conversations, contacts, chatbot flows, CRM, storefront and WhatsApp templates.",
+      "version": "1.0.0"
+    }
+  ]
+}

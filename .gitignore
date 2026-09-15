@@ -1,0 +1,2 @@
+# Resultado de avaliação é local: cada execução de `claude plugin eval` escreve um diretório novo.
+evals/results/

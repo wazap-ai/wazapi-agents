@@ -498,12 +498,12 @@
     {
       "name": "update_store_product",
       "category": "store",
-      "summary": "Updates a product and replaces its variant list.",
+      "summary": "Updates a product; omitted fields keep their value.",
       "scope": "store:write",
       "requiresPlan": "storefront",
       "mutates": true,
       "sideEffects": [
-        "Variants missing from the payload are deleted."
+        "When `variants` is sent, variants missing from it are deleted."
       ]
     }
   ]

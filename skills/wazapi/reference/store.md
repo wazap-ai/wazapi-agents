@@ -13,7 +13,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `get_store_metrics` — Returns sales metrics for a period.
 - `update_store_order_status` — Advances an order along its status machine.
 - `create_store_product` — Creates a product, optionally with variants.
-- `update_store_product` — Updates a product and replaces its variant list.
+- `update_store_product` — Updates a product; omitted fields keep their value.
 
 #### `get_catalog_status`
 
@@ -74,7 +74,7 @@ Fetches one product with its variants.
 **Scope:** `store:read`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** Always before `update_store_product`, because that update replaces the variant list.
+**When to use.** Before `update_store_product` when changing variants, because a sent variant list replaces the existing one.
 
 Fetch a single store product by UUID, including variants
 
@@ -193,14 +193,14 @@ Create a new product in the company store, optionally with variants
 
 #### `update_store_product`
 
-Updates a product and replaces its variant list.
+Updates a product; omitted fields keep their value.
 
 **Scope:** `store:write`
 **Plan:** requires a plan with the storefront.
 
 **When to use.** To change price, stock or description.
 
-Update an existing store product. Existing variants not included in the payload are removed.
+Update an existing store product. Omitted fields keep their current value. When `variants` is sent it replaces the list: variants with a known uuid are updated, new ones are created and existing variants missing from it are removed (including inactive ones — read them with get_store_product first). Omit `variants` to leave them untouched.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -226,6 +226,6 @@ Update an existing store product. Existing variants not included in the payload 
 | `variants[].active` | boolean | no | — |
 
 **Side effects.**
-- Variants missing from the payload are deleted.
+- When `variants` is sent, variants missing from it are deleted.
 
-- Call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.
+- Omit `variants` to leave them untouched. To change them, call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.

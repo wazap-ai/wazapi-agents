@@ -98,6 +98,7 @@ Assign a conversation to a specific user (agent) or group. Use the UUIDs returne
 
 - Use `assignedToUserUuid` and `assignedToGroupUuid`, taken from `list_agents` and `list_groups`. The numeric variants are legacy and their ids are not discoverable through any tool.
 - Pass `null` to unassign. Omitting a field leaves it untouched.
+- Inactive agents (`isActive: false` in `list_agents`) and inactive groups are refused — pick an active one instead of retrying.
 
 ```json
 {

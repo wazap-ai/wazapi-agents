@@ -291,6 +291,7 @@ Assign a conversation to a specific user (agent) or group. Use the UUIDs returne
 
 - Use `assignedToUserUuid` and `assignedToGroupUuid`, taken from `list_agents` and `list_groups`. The numeric variants are legacy and their ids are not discoverable through any tool.
 - Pass `null` to unassign. Omitting a field leaves it untouched.
+- Inactive agents (`isActive: false` in `list_agents`) and inactive groups are refused — pick an active one instead of retrying.
 
 ```json
 {
@@ -1143,7 +1144,7 @@ Fetches one product with its variants.
 **Scope:** `store:read`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** Always before `update_store_product`, because that update replaces the variant list.
+**When to use.** Before `update_store_product` when changing variants, because a sent variant list replaces the existing one.
 
 Fetch a single store product by UUID, including variants
 
@@ -1262,14 +1263,14 @@ Create a new product in the company store, optionally with variants
 
 #### `update_store_product`
 
-Updates a product and replaces its variant list.
+Updates a product; omitted fields keep their value.
 
 **Scope:** `store:write`
 **Plan:** requires a plan with the storefront.
 
 **When to use.** To change price, stock or description.
 
-Update an existing store product. Existing variants not included in the payload are removed.
+Update an existing store product. Omitted fields keep their current value. When `variants` is sent it replaces the list: variants with a known uuid are updated, new ones are created and existing variants missing from it are removed (including inactive ones — read them with get_store_product first). Omit `variants` to leave them untouched.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -1295,6 +1296,6 @@ Update an existing store product. Existing variants not included in the payload 
 | `variants[].active` | boolean | no | — |
 
 **Side effects.**
-- Variants missing from the payload are deleted.
+- When `variants` is sent, variants missing from it are deleted.
 
-- Call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.
+- Omit `variants` to leave them untouched. To change them, call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.

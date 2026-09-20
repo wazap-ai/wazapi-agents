@@ -192,6 +192,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
+| `channelUuid` | uuid | no | — |
 | `conversationUuid` | uuid | no | — |
 | `contactUuid` | uuid | no | — |
 | `phone` | string | no | — |
@@ -205,6 +206,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 - Writes a `conversation.template.sent` audit entry.
 
 - Address it with exactly one of `conversationUuid`, `contactUuid` or `phone`.
+- Pass `channelUuid` when multiple WhatsApp numbers are connected; for a conversation it must match its channel. Pass `language` to select the exact approved translation on that number.
 - `parameters` fills the body variables positionally: the first entry becomes {{1}}.
 - The template must already be `APPROVED`; check with `list_whatsapp_templates` first.
 - A MARKETING template will not create a contact: addressing one by `phone` alone is refused unless the contact already exists. UTILITY and AUTHENTICATION may create it.

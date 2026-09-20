@@ -55,7 +55,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `contacts:read` | `list_contacts`, `get_contact`, `list_tags`, `list_custom_field_definitions` |
+| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
 | `contacts:write` | `create_contact`, `update_contact` |
 | `conversations:read` | `list_conversations`, `get_conversation` |
 | `conversations:write` | `update_conversation_status`, `assign_conversation` |
@@ -69,6 +69,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
 | `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
 | `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product` |
+| `tags:read` | `list_tags` |
 | `tags:write` | `create_tag` |
 | `users:read` | `list_agents` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
@@ -387,6 +388,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
+| `channelUuid` | uuid | no | — |
 | `conversationUuid` | uuid | no | — |
 | `contactUuid` | uuid | no | — |
 | `phone` | string | no | — |
@@ -400,6 +402,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 - Writes a `conversation.template.sent` audit entry.
 
 - Address it with exactly one of `conversationUuid`, `contactUuid` or `phone`.
+- Pass `channelUuid` when multiple WhatsApp numbers are connected; for a conversation it must match its channel. Pass `language` to select the exact approved translation on that number.
 - `parameters` fills the body variables positionally: the first entry becomes {{1}}.
 - The template must already be `APPROVED`; check with `list_whatsapp_templates` first.
 - A MARKETING template will not create a contact: addressing one by `phone` alone is refused unless the contact already exists. UTILITY and AUTHENTICATION may create it.
@@ -521,7 +524,7 @@ Update metadata, name, tags, or custom fields of an existing contact by UUID
 
 Lists the tag definitions of the company.
 
-**Scope:** `contacts:read`
+**Scope:** `tags:read`
 
 **When to use.** Before writing tags onto a contact, so you reuse existing names instead of inventing near-duplicates.
 

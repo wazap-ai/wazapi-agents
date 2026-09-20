@@ -114,7 +114,7 @@ Update metadata, name, tags, or custom fields of an existing contact by UUID
 
 Lists the tag definitions of the company.
 
-**Scope:** `contacts:read`
+**Scope:** `tags:read`
 
 **When to use.** Before writing tags onto a contact, so you reuse existing names instead of inventing near-duplicates.
 

@@ -58,7 +58,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `contacts:read` | `list_contacts`, `get_contact`, `list_tags`, `list_custom_field_definitions` |
+| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
 | `contacts:write` | `create_contact`, `update_contact` |
 | `conversations:read` | `list_conversations`, `get_conversation` |
 | `conversations:write` | `update_conversation_status`, `assign_conversation` |
@@ -72,6 +72,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
 | `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
 | `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product` |
+| `tags:read` | `list_tags` |
 | `tags:write` | `create_tag` |
 | `users:read` | `list_agents` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |

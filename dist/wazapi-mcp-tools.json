@@ -256,7 +256,7 @@
       "name": "list_tags",
       "category": "contacts",
       "summary": "Lists the tag definitions of the company.",
-      "scope": "contacts:read",
+      "scope": "tags:read",
       "requiresPlan": null,
       "mutates": false,
       "sideEffects": []

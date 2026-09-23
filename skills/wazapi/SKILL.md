@@ -58,6 +58,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
+| `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
 | `contacts:write` | `create_contact`, `update_contact` |
 | `conversations:read` | `list_conversations`, `get_conversation` |
@@ -157,7 +158,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Contacts, tags and custom fields** — `reference/contacts.md`
 
-`list_contacts`, `get_contact`, `create_contact`, `update_contact`, `list_tags`, `create_tag`, `list_custom_field_definitions`
+`list_contacts`, `get_contact`, `create_contact`, `update_contact`, `block_contact`, `unblock_contact`, `list_tags`, `create_tag`, `list_custom_field_definitions`
 
 **Flows** — `reference/flows.md`
 

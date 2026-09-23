@@ -55,6 +55,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
+| `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
 | `contacts:write` | `create_contact`, `update_contact` |
 | `conversations:read` | `list_conversations`, `get_conversation` |
@@ -519,6 +520,48 @@ Update metadata, name, tags, or custom fields of an existing contact by UUID
 
 - `tags` replaces the whole array, but `customFields` is merged key by key. There is no way to delete a custom field through this tool.
 - Send the full tag list, including the tags you want to keep.
+
+#### `block_contact`
+
+Blocks a contact in both directions.
+
+**Scope:** `contacts:block`
+
+**When to use.** Only when the user explicitly asks to block someone (spam, abuse).
+
+Block a contact: their inbound messages are dropped, the open conversation is closed and nothing is sent to them (replies, flows, templates, campaigns). On WhatsApp it also blocks on Meta when the contact wrote in the last 24h (metaBlocked). Ask the user before calling it.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `contactUuid` | uuid | yes | — |
+
+**Side effects.**
+- Inbound messages and calls from the contact are dropped: no conversation, bot or notification.
+- Closes the open conversation and stops its bot, without the close-CRM policy.
+- Every send to the contact is refused with `contact_blocked`: replies, flows, templates and campaigns.
+- On WhatsApp also calls Meta `block_users`; writes a `contact.blocked` audit entry.
+
+- Meta only accepts contacts who wrote in the last 24h. When it refuses, `metaBlocked` is false and the block is Wazapi-only.
+- Requires the `contacts:block` scope; `contacts:write` does not grant it.
+
+#### `unblock_contact`
+
+Removes the block from a contact.
+
+**Scope:** `contacts:block`
+
+**When to use.** When the user asks to unblock a contact.
+
+Unblock a contact. If metaBlocked stays true afterwards, Meta refused the unblock and the contact still cannot write on WhatsApp; retry later.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `contactUuid` | uuid | yes | — |
+
+**Side effects.**
+- Writes a `contact.unblocked` audit entry. Does not reopen any conversation.
+
+- `metaBlocked` still true after the call means Meta refused the unblock: the contact still cannot write on WhatsApp. Call it again later.
 
 #### `list_tags`
 

@@ -253,6 +253,31 @@
       ]
     },
     {
+      "name": "block_contact",
+      "category": "contacts",
+      "summary": "Blocks a contact in both directions.",
+      "scope": "contacts:block",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Inbound messages and calls from the contact are dropped: no conversation, bot or notification.",
+        "Closes the open conversation and stops its bot, without the close-CRM policy.",
+        "Every send to the contact is refused with `contact_blocked`: replies, flows, templates and campaigns.",
+        "On WhatsApp also calls Meta `block_users`; writes a `contact.blocked` audit entry."
+      ]
+    },
+    {
+      "name": "unblock_contact",
+      "category": "contacts",
+      "summary": "Removes the block from a contact.",
+      "scope": "contacts:block",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `contact.unblocked` audit entry. Does not reopen any conversation."
+      ]
+    },
+    {
       "name": "list_tags",
       "category": "contacts",
       "summary": "Lists the tag definitions of the company.",

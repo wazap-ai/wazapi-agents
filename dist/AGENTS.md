@@ -898,7 +898,7 @@ Submits a new message template to Meta for review.
 
 **When to use.** When the workspace needs to start conversations outside the 24h window and no suitable template exists yet.
 
-Submit a new message template to Meta for review. Approval is asynchronous: the template comes back as PENDING and only becomes usable by send_template_message once Meta approves it. Body variables use the {{1}}, {{2}} positional syntax and every one of them needs a matching entry in sampleValues, otherwise Meta rejects the submission.
+Submit a new message template to Meta for review. Approval is asynchronous: the template comes back as PENDING and only becomes usable by send_template_message once Meta approves it. Body variables use the {{1}}, {{2}} positional syntax and every one of them needs a matching entry in sampleValues, otherwise Meta rejects the submission. Buttons: up to 10 (max 2 URL, 1 PHONE_NUMBER, 1 COPY_CODE), quick replies kept together; a URL may end with one {{1}} and then needs example [full sample URL]; COPY_CODE is MARKETING-only and takes example as a string.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -920,6 +920,7 @@ Submit a new message template to Meta for review. Approval is asynchronous: the 
 - Four body rules are enforced before submission, because Meta rejects them with an unhelpful generic error: a variable may not open the body, may not close it, variables may not be adjacent, and numbering must run sequentially from {{1}}.
 - Every `{{n}}` needs a matching entry in `sampleValues`, in order.
 - `name` accepts only lowercase letters, digits and underscores.
+- Buttons follow Meta limits, checked before submission: at most 10, with up to 2 `URL`, 1 `PHONE_NUMBER` and 1 `COPY_CODE`, and quick replies grouped together. A URL may end with a single `{{1}}` (then `example` is the full sample URL in a one-item array); `COPY_CODE` is MARKETING-only and its `example` is a string. Templates with a dynamic URL or a copy code cannot be sent by `send_template_message`.
 
 ```json
 {

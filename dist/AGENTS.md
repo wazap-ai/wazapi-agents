@@ -342,6 +342,7 @@ Send a human text reply in an existing WhatsApp, Instagram, or Messenger convers
 - Assigns the conversation to the token owner, taking it from whoever had it.
 - Ends the AI agent parked on the conversation, if there is one. The flow session closes as a handoff and the bot does not come back on the next inbound message.
 - Writes a `conversation.reply.sent` audit entry.
+- When the workspace signs agent messages, the customer receives the text prefixed with the token owner's display name. The stored message and `list_messages` keep the text you sent.
 
 - The reassignment is silent and real — do not use this tool for read-only triage.
 - Confirm the text with the user before sending. A sent WhatsApp message cannot be recalled.
@@ -372,6 +373,7 @@ Send buyable product card(s) from the Meta catalog in an existing WhatsApp conve
 - Assigns the conversation to the token owner.
 - Ends the AI agent parked on the conversation, exactly like `send_text_message`.
 - Writes a `conversation.product.sent` audit entry.
+- When the workspace signs agent messages, the body goes out prefixed with the token owner's display name, like `send_text_message`.
 
 - Check `get_catalog_status` first: products must be synced and not rejected by Meta review.
 - One product sends a single card; 2–30 products send a product list.

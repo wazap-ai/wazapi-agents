@@ -65,7 +65,7 @@ _No arguments._
 
 - Every uuid you put in a node must come from here (or from another list tool). An invented uuid fails validation.
 - `availableResources.businessSchedules` is what the `business_hours` block needs: a schedule uuid from another company is rejected, and that block accepts no outgoing handle other than `inside` and `outside`.
-- `availableResources.aiAgents` is what the `ai_agent` block needs. Schedules, AI agents and knowledge sources are created in the dashboard — no tool here creates them.
+- `availableResources.aiAgents` is what the `ai_agent` block needs. Schedules and AI agents are created in the dashboard — no tool here creates them. Knowledge sources can be added with `create_knowledge_source`.
 
 #### `list_flows`
 

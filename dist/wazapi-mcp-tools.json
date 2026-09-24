@@ -3,7 +3,8 @@
   "endpoint": "https://wazapi.io/mcp",
   "transport": "streamable-http",
   "sensitiveScopes": [
-    "whatsapp:credentials"
+    "whatsapp:credentials",
+    "knowledge:write"
   ],
   "tools": [
     {
@@ -531,6 +532,36 @@
       "mutates": true,
       "sideEffects": [
         "When `variants` is sent, variants missing from it are deleted."
+      ]
+    },
+    {
+      "name": "list_knowledge_sources",
+      "category": "knowledge",
+      "summary": "Lists the AI agent's knowledge base sources with indexing status, plan usage and limits.",
+      "scope": "knowledge:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "search_knowledge",
+      "category": "knowledge",
+      "summary": "Runs the same hybrid search the AI agent uses and returns the matching excerpts.",
+      "scope": "knowledge:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_knowledge_source",
+      "category": "knowledge",
+      "summary": "Adds a text, FAQ or public URL source to the AI agent knowledge base.",
+      "scope": "knowledge:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Goes live once indexed: every active AI agent without explicitly linked sources answers customers from ALL sources. The response lists them in `usedByAgents`.",
+        "A `url` source is fetched by the server in the background; only public http(s) addresses are accepted."
       ]
     }
   ]

@@ -10,7 +10,7 @@
       "name": "wazapi",
       "source": "./",
       "description": "Operates a Wazapi WhatsApp workspace over MCP: conversations, contacts, chatbot flows, CRM, storefront and WhatsApp templates.",
-      "version": "1.0.0"
+      "version": "1.1.0"
     }
   ]
 }

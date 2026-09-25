@@ -463,7 +463,7 @@
     {
       "name": "list_store_products",
       "category": "store",
-      "summary": "Lists products, filterable by category, active state and text.",
+      "summary": "Lists products, filterable by category, active state, text and externalId.",
       "scope": "store:read",
       "requiresPlan": "storefront",
       "mutates": false,

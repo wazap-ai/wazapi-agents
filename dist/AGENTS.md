@@ -1170,7 +1170,7 @@ _No arguments._
 
 #### `list_store_products`
 
-Lists products, filterable by category, active state and text.
+Lists products, filterable by category, active state, text and externalId.
 
 **Scope:** `store:read`
 **Plan:** requires a plan with the storefront.
@@ -1182,11 +1182,13 @@ List products in the company store with optional category, active and search fil
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `query` | string | no | length 0–120 |
+| `externalId` | string | no | length 0–120 |
 | `categoryUuid` | uuid | no | — |
 | `active` | boolean | no | — |
 | `page` | integer | no | min 1 |
 | `limit` | integer | no | range 1–50 |
 
+- `externalId` is the product id in the customer's own platform (ERP, e-commerce); pass it for an exact lookup when the user refers to a product by that id.
 - Inactive products are still returned; they simply do not appear on the storefront.
 - This is the Wazapi storefront catalogue. The Meta catalogue behind `send_product_message` is a different list — see `get_catalog_status`.
 
@@ -1301,6 +1303,8 @@ Create a new product in the company store, optionally with variants
 | `costCents` | integer | no | range 0–100000000 |
 | `taxPercent` | number | no | range 0–100 |
 | `markupPercent` | number | no | range 0–10000 |
+| `externalId` | string \| null | no | — |
+| `categoryExternalId` | string \| null | no | — |
 | `highlighted` | boolean | no | — |
 | `trackStock` | boolean | no | — |
 | `stock` | integer | no | min 0 |
@@ -1313,6 +1317,7 @@ Create a new product in the company store, optionally with variants
 | `variants[].active` | boolean | no | — |
 
 - All money fields are in cents.
+- `externalId` links the product to the customer's own platform; `categoryExternalId` picks the category by that same kind of id (unknown id is an error, unlike an unknown `categoryUuid`).
 
 #### `update_store_product`
 
@@ -1336,6 +1341,8 @@ Update an existing store product. Omitted fields keep their current value. When 
 | `costCents` | integer | no | range 0–100000000 |
 | `taxPercent` | number | no | range 0–100 |
 | `markupPercent` | number | no | range 0–10000 |
+| `externalId` | string \| null | no | — |
+| `categoryExternalId` | string \| null | no | — |
 | `highlighted` | boolean | no | — |
 | `trackStock` | boolean | no | — |
 | `stock` | integer | no | min 0 |

@@ -85,6 +85,14 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 
 Scopes marked ⚠️ are sensitive: a token with broad access does **not** get them. They must be granted by name.
 
+Existing connections keep their current permissions when AI-agent tools become available. A grant containing `mcp` automatically includes `ai_agents:read`; a limited grant needs that read scope explicitly. Creating or editing agents always requires the sensitive `ai_agents:write` scope, even with broad access.
+
+- **Existing OAuth connection:** the client registration must allow `ai_agents:write`, and a new authorization request must explicitly request it (for example, `mcp ai_agents:write`). Ask the user to approve it on the consent screen. A client registered only for `mcp` must register again with the additional scope before requesting it. Reconnecting with only `mcp`, or refreshing a token, does not grant write access. If the permission is absent from consent, the client must change its registration/request; the user cannot enable an unrequested scope there.
+- **Existing static token:** at Settings → MCP, issue a replacement token with `ai_agents:read` and “Criar e editar agentes de IA” (`ai_agents:write`), then replace the token in the client. After confirming the replacement works, revoke the old token if it is no longer used by any integration.
+- **After authorization:** refresh the client tool list or restart its MCP connection if the new tools are not visible. Updating this skill only updates documentation; it never changes token permissions.
+
+AI-agent calls also require a compatible company plan and owner or `settings.general` access. New agents remain inactive until activated in the dashboard. Editing an active agent takes effect on the next configuration read, including ongoing conversations.
+
 ## Reading errors
 
 | What you see | What it means | What to do |
@@ -655,7 +663,7 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
 - The `data` object of a node is validated field by field against this schema. Guessing field names is the most common cause of a rejected graph.
 
@@ -771,7 +779,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 | `nodes` | object[] | yes | 1–300 items |
 | `edges` | object[] | yes | 0–800 items |
 | `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 | `nodes[].position` | object | yes | — |
 | `nodes[].data` | object | no | — |
 | `edges[].source` | string | yes | length 1–120 |
@@ -803,7 +811,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `nodes` | object[] | yes | 1–300 items |
 | `edges` | object[] | yes | 0–800 items |
 | `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 | `nodes[].position` | object | yes | — |
 | `nodes[].data` | object | no | — |
 | `edges[].source` | string | yes | length 1–120 |
@@ -1528,7 +1536,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `maxTurns` | integer | no | range 1–100 | — |
 | `inactivityTimeoutMinutes` | integer | no | range 1–10080 | — |
 | `bypassPhrases` | string[] \| string \| null | no | — | Null or an empty list restores the default bypass phrases. |
-| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
+| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
 | `crmGroupUuid` | uuid \| null | no | — | — |
 | `allowedTagUuids` | uuid[] | no | 0–100 items | — |
 | `allowedFieldKeys` | string[] | no | 0–100 items | — |
@@ -1547,6 +1555,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its link or Pix. Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `update_ai_agent`
@@ -1578,7 +1587,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `maxTurns` | integer | no | range 1–100 | — |
 | `inactivityTimeoutMinutes` | integer | no | range 1–10080 | — |
 | `bypassPhrases` | string[] \| string \| null | no | — | Null or an empty list restores the default bypass phrases. |
-| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
+| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
 | `crmGroupUuid` | uuid \| null | no | — | — |
 | `allowedTagUuids` | uuid[] | no | 0–100 items | — |
 | `allowedFieldKeys` | string[] | no | 0–100 items | — |
@@ -1597,4 +1606,5 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its link or Pix. Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.

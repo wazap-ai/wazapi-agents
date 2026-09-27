@@ -4,6 +4,8 @@
   "transport": "streamable-http",
   "sensitiveScopes": [
     "whatsapp:credentials",
+    "groups:write",
+    "users:write",
     "ai_agents:write",
     "knowledge:write"
   ],
@@ -331,6 +333,77 @@
       "mutates": true,
       "sideEffects": [
         "Writes a `conversation.assigned` audit entry."
+      ]
+    },
+    {
+      "name": "get_group",
+      "category": "directory",
+      "summary": "Read group configuration and membership.",
+      "scope": "groups:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_group",
+      "category": "directory",
+      "summary": "Create a support group and its CRM pipeline.",
+      "scope": "groups:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Creates the group and CRM pipeline, saves membership and audits the change. Membership affects access and conversation distribution."
+      ]
+    },
+    {
+      "name": "update_group",
+      "category": "directory",
+      "summary": "Patch a support group, its settings and its membership.",
+      "scope": "groups:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Saves and audits group settings and membership. Removed members lose CRM assignments within this group."
+      ]
+    },
+    {
+      "name": "get_agent",
+      "category": "directory",
+      "summary": "Read a human agent and their company-local access profile and groups.",
+      "scope": "users:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_team_configuration_context",
+      "category": "directory",
+      "summary": "Discover access profiles and pending invitations in the current company.",
+      "scope": "users:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "invite_agent",
+      "category": "directory",
+      "summary": "Send an invitation email to a human attendant.",
+      "scope": "users:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Creates or renews an invitation and queues its email. Omitted group/profile fields preserve a pending invitation; empty groups or a null profile clear that selection."
+      ]
+    },
+    {
+      "name": "update_agent",
+      "category": "directory",
+      "summary": "Patch a human agent and their local access profile.",
+      "scope": "users:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Saves and audits supplied details and the company-local access profile. Profile changes affect access to company data."
       ]
     },
     {

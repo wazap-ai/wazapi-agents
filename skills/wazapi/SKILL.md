@@ -88,6 +88,14 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 
 Scopes marked ⚠️ are sensitive: a token with broad access does **not** get them. They must be granted by name.
 
+Existing connections keep their current permissions when AI-agent tools become available. A grant containing `mcp` automatically includes `ai_agents:read`; a limited grant needs that read scope explicitly. Creating or editing agents always requires the sensitive `ai_agents:write` scope, even with broad access.
+
+- **Existing OAuth connection:** the client registration must allow `ai_agents:write`, and a new authorization request must explicitly request it (for example, `mcp ai_agents:write`). Ask the user to approve it on the consent screen. A client registered only for `mcp` must register again with the additional scope before requesting it. Reconnecting with only `mcp`, or refreshing a token, does not grant write access. If the permission is absent from consent, the client must change its registration/request; the user cannot enable an unrequested scope there.
+- **Existing static token:** at Settings → MCP, issue a replacement token with `ai_agents:read` and “Criar e editar agentes de IA” (`ai_agents:write`), then replace the token in the client. After confirming the replacement works, revoke the old token if it is no longer used by any integration.
+- **After authorization:** refresh the client tool list or restart its MCP connection if the new tools are not visible. Updating this skill only updates documentation; it never changes token permissions.
+
+AI-agent calls also require a compatible company plan and owner or `settings.general` access. New agents remain inactive until activated in the dashboard. Editing an active agent takes effect on the next configuration read, including ongoing conversations.
+
 ## Reading errors
 
 | What you see | What it means | What to do |

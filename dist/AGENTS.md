@@ -69,7 +69,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph` |
 | `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status` |
-| `groups:read` | `list_groups` |
+| `groups:read` | `get_group`, `list_groups` |
+| `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
 | `knowledge:write` ⚠️ | `create_knowledge_source` |
 | `messages:read` | `list_messages` |
@@ -78,7 +79,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product` |
 | `tags:read` | `list_tags` |
 | `tags:write` | `create_tag` |
-| `users:read` | `list_agents` |
+| `users:read` | `get_agent`, `get_team_configuration_context`, `list_agents` |
+| `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
 | `whatsapp:read` | `list_channels`, `get_whatsapp_config`, `list_whatsapp_templates` |
 | `whatsapp:write` | `create_whatsapp_template` |
@@ -90,6 +92,8 @@ Existing connections keep their current permissions when AI-agent tools become a
 - **Existing OAuth connection:** the client registration must allow `ai_agents:write`, and a new authorization request must explicitly request it (for example, `mcp ai_agents:write`). Ask the user to approve it on the consent screen. A client registered only for `mcp` must register again with the additional scope before requesting it. Reconnecting with only `mcp`, or refreshing a token, does not grant write access. If the permission is absent from consent, the client must change its registration/request; the user cannot enable an unrequested scope there.
 - **Existing static token:** at Settings → MCP, issue a replacement token with `ai_agents:read` and “Criar e editar agentes de IA” (`ai_agents:write`), then replace the token in the client. After confirming the replacement works, revoke the old token if it is no longer used by any integration.
 - **After authorization:** refresh the client tool list or restart its MCP connection if the new tools are not visible. Updating this skill only updates documentation; it never changes token permissions.
+
+Human-agent and group management follows the same upgrade process: `users:write` and `groups:write` are explicit sensitive scopes. Request them in the OAuth client registration and authorization, or select their sensitive Write cells when issuing a replacement static token. Broad `mcp` grants include `users:read` and `groups:read`; limited grants need them explicitly. Team configuration and writes require `settings.team`. `invite_agent` sends an email and must only be called when the user asks to invite that person. Credentials, account activation and deletion remain dashboard-only.
 
 AI-agent calls also require a compatible company plan and owner or `settings.general` access. New agents remain inactive until activated in the dashboard. Editing an active agent takes effect on the next configuration read, including ongoing conversations.
 
@@ -190,6 +194,174 @@ _No arguments._
 
 - `status` tells you whether the channel is usable. A channel that is not `connected` will fail on send.
 
+#### `get_group`
+
+Read group configuration and membership.
+
+**Scope:** `groups:read`
+
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids and phoneNumbers.
+
+Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+
+- Requires groups:read and settings.team.
+
+#### `create_group`
+
+Create a support group and its CRM pipeline.
+
+**Scope:** `groups:write` — **sensitive, never granted by broad access**
+
+**When to use.** Only when the user asks to create a group. Discover member UUIDs with list_agents; at least one member or supervisor is required.
+
+Create a support group and its CRM pipeline. Requires explicit groups:write and settings.team. Select memberUuids and supervisorUuids from list_agents; at least one person is required.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `name` | string | yes | length 1–100 |
+| `memberUuids` | uuid[] | no | 0–1000 items |
+| `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `autoDistribute` | boolean | no | — |
+| `transferOnInactivity` | boolean | no | — |
+| `inactivityTransferMinutes` | integer | no | range 1–43200 |
+| `limitConversationsPerUser` | boolean | no | — |
+| `maxConversationsPerUser` | integer | no | range 1–10000 |
+| `privateConversations` | boolean | no | — |
+| `membersCantSeeOthersAssigned` | boolean | no | — |
+| `restrictToPhoneNumbers` | boolean | no | — |
+| `phoneNumbers` | string[] | no | 0–1000 items |
+| `autoCloseOnContactInactivity` | boolean | no | — |
+| `contactInactivityMinutes` | integer | no | range 1–43200 |
+| `inactivityWarningEnabled` | boolean | no | — |
+| `inactivityWarningMinutes` | integer | no | range 1–43200 |
+| `inactivityWarningMessage` | string | no | length 0–1000 |
+| `respectBusinessHours` | boolean | no | — |
+
+**Side effects.**
+- Creates the group and CRM pipeline, saves membership and audits the change. Membership affects access and conversation distribution.
+
+- Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+
+#### `update_group`
+
+Patch a support group, its settings and its membership.
+
+**Scope:** `groups:write` — **sensitive, never granted by broad access**
+
+**When to use.** Read get_group first. Omitted fields are preserved; supplied arrays replace the entire list. Membership can change inbox visibility and distribution. Removing a member clears their CRM assignments in this group.
+
+Patch group configuration and membership. Omitted fields are preserved; supplied arrays replace their lists. Removing members clears their CRM assignments in this group. Requires explicit groups:write and settings.team.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `name` | string | no | length 1–100 |
+| `memberUuids` | uuid[] | no | 0–1000 items |
+| `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `autoDistribute` | boolean | no | — |
+| `transferOnInactivity` | boolean | no | — |
+| `inactivityTransferMinutes` | integer | no | range 1–43200 |
+| `limitConversationsPerUser` | boolean | no | — |
+| `maxConversationsPerUser` | integer | no | range 1–10000 |
+| `privateConversations` | boolean | no | — |
+| `membersCantSeeOthersAssigned` | boolean | no | — |
+| `restrictToPhoneNumbers` | boolean | no | — |
+| `phoneNumbers` | string[] | no | 0–1000 items |
+| `autoCloseOnContactInactivity` | boolean | no | — |
+| `contactInactivityMinutes` | integer | no | range 1–43200 |
+| `inactivityWarningEnabled` | boolean | no | — |
+| `inactivityWarningMinutes` | integer | no | range 1–43200 |
+| `inactivityWarningMessage` | string | no | length 0–1000 |
+| `respectBusinessHours` | boolean | no | — |
+| `groupUuid` | uuid | yes | — |
+
+**Side effects.**
+- Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
+
+- Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+
+#### `get_agent`
+
+Read a human agent and their company-local access profile and groups.
+
+**Scope:** `users:read`
+
+**When to use.** Before updating a human attendant. This is distinct from get_ai_agent. Guest private details are hidden.
+
+Read one human agent and their company-local profile and group UUIDs. Requires settings.team. Guest private details are hidden. This is not an AI agent.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `agentUuid` | uuid | yes | — |
+
+- Requires users:read and settings.team.
+
+#### `get_team_configuration_context`
+
+Discover access profiles and pending invitations in the current company.
+
+**Scope:** `users:read`
+
+**When to use.** Before inviting or updating agents. Use list_agents and list_groups to discover people and group UUIDs. No invitation tokens are returned.
+
+Discover company access-profile UUIDs and pending invitations. Use list_agents and list_groups for member and group UUIDs. Requires settings.team.
+
+_No arguments._
+
+- Requires users:read and settings.team.
+
+#### `invite_agent`
+
+Send an invitation email to a human attendant.
+
+**Scope:** `users:write` — **sensitive, never granted by broad access**
+
+**When to use.** Only when the user explicitly asks to invite that person. They must accept before joining. Pending invitations for the same email are renewed. Use company group/profile UUIDs from discovery. Check emailQueued; false means saved but delivery was not queued.
+
+Invite a human agent by email to the active company. Sends an invitation email; the person must accept before joining. Existing pending invitations are renewed. Requires explicit users:write, settings.team and available plan seats. Only invite when the user explicitly asks.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `fullName` | string | yes | length 2–120 |
+| `phone` | string \| null | no | — |
+| `externalId` | string \| null | no | — |
+| `accessProfileUuid` | uuid \| null | no | — |
+| `email` | string | yes | length 0–254 |
+| `groupUuids` | uuid[] | no | 0–1000 items |
+
+**Side effects.**
+- Creates or renews an invitation and queues its email. Omitted group/profile fields preserve a pending invitation; empty groups or a null profile clear that selection.
+
+- Requires users:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+
+#### `update_agent`
+
+Patch a human agent and their local access profile.
+
+**Scope:** `users:write` — **sensitive, never granted by broad access**
+
+**When to use.** Omitted fields are preserved. Guest accounts allow only the local profile change; personal data belongs to their original company. You cannot change your own profile. Credentials, activation, deletion and cross-company links stay in the dashboard.
+
+Patch human agent personal details and the access profile in this company. Omitted fields are preserved. Guest personal details and your own access profile cannot be changed. Credentials, deletion and activation remain in the dashboard. Requires explicit users:write and settings.team.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `fullName` | string | no | length 2–120 |
+| `phone` | string \| null | no | — |
+| `externalId` | string \| null | no | — |
+| `accessProfileUuid` | uuid \| null | no | — |
+| `agentUuid` | uuid | yes | — |
+| `displayName` | string \| null | no | — |
+| `signature` | string \| null | no | — |
+
+**Side effects.**
+- Saves and audits supplied details and the company-local access profile. Profile changes affect access to company data.
+
+- Requires users:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+
 #### `list_groups`
 
 Lists the support groups of the company.
@@ -198,7 +370,7 @@ Lists the support groups of the company.
 
 **When to use.** To get a group uuid for assignment, or to understand how the team is organised.
 
-List all active support groups configured in this company
+List support groups configured in this company, including inactive groups
 
 _No arguments._
 
@@ -216,7 +388,7 @@ List the users (agents) of the active Wazapi company, with the UUIDs required to
 
 _No arguments._
 
-- This is the only tool that exposes agent uuids. Never invent one.
+- Use these agent UUIDs for team management and assignment. Never invent one.
 - `available` is the answer to "will this person get the conversation": it means the agent set themselves to online, is active, and the dashboard has seen them in the last few minutes (`present`). `status` alone is a stated intention, not proof anyone is at the desk.
 - Assigning to an unavailable agent is allowed and sometimes correct, but automatic distribution and the `assign_agent` flow block skip them. Say so when you assign one.
 

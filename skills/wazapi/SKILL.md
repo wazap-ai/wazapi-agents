@@ -72,7 +72,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph` |
 | `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status` |
-| `groups:read` | `list_groups` |
+| `groups:read` | `get_group`, `list_groups` |
+| `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
 | `knowledge:write` ⚠️ | `create_knowledge_source` |
 | `messages:read` | `list_messages` |
@@ -81,7 +82,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product` |
 | `tags:read` | `list_tags` |
 | `tags:write` | `create_tag` |
-| `users:read` | `list_agents` |
+| `users:read` | `get_agent`, `get_team_configuration_context`, `list_agents` |
+| `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
 | `whatsapp:read` | `list_channels`, `get_whatsapp_config`, `list_whatsapp_templates` |
 | `whatsapp:write` | `create_whatsapp_template` |
@@ -93,6 +95,8 @@ Existing connections keep their current permissions when AI-agent tools become a
 - **Existing OAuth connection:** the client registration must allow `ai_agents:write`, and a new authorization request must explicitly request it (for example, `mcp ai_agents:write`). Ask the user to approve it on the consent screen. A client registered only for `mcp` must register again with the additional scope before requesting it. Reconnecting with only `mcp`, or refreshing a token, does not grant write access. If the permission is absent from consent, the client must change its registration/request; the user cannot enable an unrequested scope there.
 - **Existing static token:** at Settings → MCP, issue a replacement token with `ai_agents:read` and “Criar e editar agentes de IA” (`ai_agents:write`), then replace the token in the client. After confirming the replacement works, revoke the old token if it is no longer used by any integration.
 - **After authorization:** refresh the client tool list or restart its MCP connection if the new tools are not visible. Updating this skill only updates documentation; it never changes token permissions.
+
+Human-agent and group management follows the same upgrade process: `users:write` and `groups:write` are explicit sensitive scopes. Request them in the OAuth client registration and authorization, or select their sensitive Write cells when issuing a replacement static token. Broad `mcp` grants include `users:read` and `groups:read`; limited grants need them explicitly. Team configuration and writes require `settings.team`. `invite_agent` sends an email and must only be called when the user asks to invite that person. Credentials, account activation and deletion remain dashboard-only.
 
 AI-agent calls also require a compatible company plan and owner or `settings.general` access. New agents remain inactive until activated in the dashboard. Editing an active agent takes effect on the next configuration read, including ongoing conversations.
 
@@ -164,7 +168,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Session and directory** — `reference/workspace.md`
 
-`get_session_context`, `list_channels`, `list_groups`, `list_agents`
+`get_session_context`, `list_channels`, `get_group`, `create_group`, `update_group`, `get_agent`, `get_team_configuration_context`, `invite_agent`, `update_agent`, `list_groups`, `list_agents`
 
 **Conversations and messaging** — `reference/conversations.md`
 

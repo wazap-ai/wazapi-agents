@@ -60,6 +60,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
+| `ai_agents:read` | `list_ai_agents`, `get_ai_agent`, `get_ai_agent_configuration_context` |
+| `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
 | `contacts:write` | `create_contact`, `update_contact` |
@@ -179,6 +181,10 @@ Each domain has its own file next to this one, with the full entry per tool — 
 **Store** — `reference/store.md`
 
 `get_catalog_status`, `get_storefront_summary`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics`, `update_store_order_status`, `create_store_product`, `update_store_product`
+
+**AI agents** — `reference/ai-agents.md`
+
+`list_ai_agents`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `update_ai_agent`
 
 **Knowledge base** — `reference/knowledge.md`
 

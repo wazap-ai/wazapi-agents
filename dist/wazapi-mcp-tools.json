@@ -4,6 +4,7 @@
   "transport": "streamable-http",
   "sensitiveScopes": [
     "whatsapp:credentials",
+    "ai_agents:write",
     "knowledge:write"
   ],
   "tools": [
@@ -532,6 +533,55 @@
       "mutates": true,
       "sideEffects": [
         "When `variants` is sent, variants missing from it are deleted."
+      ]
+    },
+    {
+      "name": "list_ai_agents",
+      "category": "ai_agents",
+      "summary": "List AI agents",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_ai_agent",
+      "category": "ai_agents",
+      "summary": "Get AI agent",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_ai_agent_configuration_context",
+      "category": "ai_agents",
+      "summary": "Get AI agent configuration context",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_ai_agent",
+      "category": "ai_agents",
+      "summary": "Create AI agent",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard."
+      ]
+    },
+    {
+      "name": "update_ai_agent",
+      "category": "ai_agents",
+      "summary": "Update AI agent",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard."
       ]
     },
     {

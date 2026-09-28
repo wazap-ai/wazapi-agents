@@ -3,6 +3,8 @@
   "endpoint": "https://wazapi.io/mcp",
   "transport": "streamable-http",
   "sensitiveScopes": [
+    "store:coupons",
+    "store:discounts",
     "whatsapp:credentials",
     "groups:write",
     "users:write",
@@ -530,6 +532,42 @@
       "category": "store",
       "summary": "Returns the storefront configuration, links, categories, shipping options and products.",
       "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_store_coupons",
+      "category": "store",
+      "summary": "Lists company coupons with current rules and versions.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "save_store_coupon",
+      "category": "store",
+      "summary": "Creates, updates, pauses or archives a coupon.",
+      "scope": "store:coupons",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_store_discount_policy",
+      "category": "store",
+      "summary": "Reads an AI agent discount policy.",
+      "scope": "store:read",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "save_store_discount_policy",
+      "category": "store",
+      "summary": "Configures an agent discount range and eligibility.",
+      "scope": "store:discounts",
       "requiresPlan": "storefront",
       "mutates": false,
       "sideEffects": []

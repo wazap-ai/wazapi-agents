@@ -78,7 +78,9 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `knowledge:write` ⚠️ | `create_knowledge_source` |
 | `messages:read` | `list_messages` |
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
-| `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
+| `store:coupons` ⚠️ | `save_store_coupon` |
+| `store:discounts` ⚠️ | `save_store_discount_policy` |
+| `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `get_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
 | `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product` |
 | `tags:read` | `list_tags` |
 | `tags:write` | `create_tag` |
@@ -192,7 +194,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Store** — `reference/store.md`
 
-`get_catalog_status`, `get_storefront_summary`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics`, `update_store_order_status`, `create_store_product`, `update_store_product`
+`get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `save_store_coupon`, `get_store_discount_policy`, `save_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics`, `update_store_order_status`, `create_store_product`, `update_store_product`
 
 **AI agents** — `reference/ai-agents.md`
 

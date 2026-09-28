@@ -41,8 +41,9 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
+- Use cart for a shared draft without reserving stock. Checkout mode cart takes cartUuid and waits for a link, order or payment; the customer chooses payment in the storefront. Existing order mode remains unchanged.
 - The `data` object of a node is validated field by field against this schema. Guessing field names is the most common cause of a rejected graph.
 
 ```json
@@ -157,7 +158,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 | `nodes` | object[] | yes | 1–300 items |
 | `edges` | object[] | yes | 0–800 items |
 | `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 | `nodes[].position` | object | yes | — |
 | `nodes[].data` | object | no | — |
 | `edges[].source` | string | yes | length 1–120 |
@@ -171,6 +172,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 
 - This is not a patch. Call `get_flow` first and send the full graph back with your changes applied, or you will silently destroy the rest of the flow.
 - Limits: 1 to 300 nodes, at most 800 edges.
+- Cart nodes have success/failure exits. Checkout mode cart requires pronto, pedido_criado, pago, falha, expirado and cancelado exits. Saving a graph does not create a cart or payment.
 - Node `key` is your own identifier and is what `edges` reference — it is not a uuid.
 
 #### `validate_flow_graph`
@@ -189,7 +191,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `nodes` | object[] | yes | 1–300 items |
 | `edges` | object[] | yes | 0–800 items |
 | `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 | `nodes[].position` | object | yes | — |
 | `nodes[].data` | object | no | — |
 | `edges[].source` | string | yes | length 1–120 |
@@ -198,6 +200,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `edges[].targetHandle` | string \| null | no | — |
 
 - Accepts exactly the same payload as `update_flow_graph`, so you can validate then send the identical object.
+- Shared cart validation checks UUID references, versions, item operations and checkout mode exclusivity; it never reserves stock or sends messages.
 
 #### `update_flow_status`
 

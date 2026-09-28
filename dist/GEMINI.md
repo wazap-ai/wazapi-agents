@@ -75,7 +75,9 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `knowledge:write` ⚠️ | `create_knowledge_source` |
 | `messages:read` | `list_messages` |
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
-| `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
+| `store:coupons` ⚠️ | `save_store_coupon` |
+| `store:discounts` ⚠️ | `save_store_discount_policy` |
+| `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `get_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
 | `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product` |
 | `tags:read` | `list_tags` |
 | `tags:write` | `create_tag` |
@@ -835,8 +837,9 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
+- Use cart for a shared draft without reserving stock. Checkout mode cart takes cartUuid and waits for a link, order or payment; the customer chooses payment in the storefront. Existing order mode remains unchanged.
 - The `data` object of a node is validated field by field against this schema. Guessing field names is the most common cause of a rejected graph.
 
 ```json
@@ -951,7 +954,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 | `nodes` | object[] | yes | 1–300 items |
 | `edges` | object[] | yes | 0–800 items |
 | `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 | `nodes[].position` | object | yes | — |
 | `nodes[].data` | object | no | — |
 | `edges[].source` | string | yes | length 1–120 |
@@ -965,6 +968,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 
 - This is not a patch. Call `get_flow` first and send the full graph back with your changes applied, or you will silently destroy the rest of the flow.
 - Limits: 1 to 300 nodes, at most 800 edges.
+- Cart nodes have success/failure exits. Checkout mode cart requires pronto, pedido_criado, pago, falha, expirado and cancelado exits. Saving a graph does not create a cart or payment.
 - Node `key` is your own identifier and is what `edges` reference — it is not a uuid.
 
 #### `validate_flow_graph`
@@ -983,7 +987,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `nodes` | object[] | yes | 1–300 items |
 | `edges` | object[] | yes | 0–800 items |
 | `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 | `nodes[].position` | object | yes | — |
 | `nodes[].data` | object | no | — |
 | `edges[].source` | string | yes | length 1–120 |
@@ -992,6 +996,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `edges[].targetHandle` | string \| null | no | — |
 
 - Accepts exactly the same payload as `update_flow_graph`, so you can validate then send the identical object.
+- Shared cart validation checks UUID references, versions, item operations and checkout mode exclusivity; it never reserves stock or sends messages.
 
 #### `update_flow_status`
 
@@ -1349,6 +1354,107 @@ _No arguments._
 
 - Category uuids appear only here — a product is filed by one of them.
 - Every price, shipping cost and total in the store is in cents.
+
+#### `list_store_coupons`
+
+Lists company coupons with current rules and versions.
+
+**Scope:** `store:read`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Before editing a campaign.
+
+List coupons in the current company. Requires store.coupons.manage permission.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `page` | integer | no | — |
+
+- Requires store.coupons.manage; public buyers cannot list campaigns.
+
+#### `save_store_coupon`
+
+Creates, updates, pauses or archives a coupon.
+
+**Scope:** `store:coupons` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Only after the merchant authorizes a financial campaign.
+
+Create or update a coupon. Requires explicit store:coupons scope and store.coupons.manage permission. Updates require the current version; archive is permanent. Percent uses basis points with a mandatory monetary cap. No stacking.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `uuid` | uuid | no | — |
+| `version` | integer | no | — |
+| `code` | string | yes | length 2–64 |
+| `name` | string | yes | length 1–120 |
+| `status` | `draft` \| `active` \| `paused` \| `archived` | yes | — |
+| `rules` | object | yes | — |
+| `startsAt` | string \| null | no | — |
+| `endsAt` | string \| null | no | — |
+| `usageLimit` | integer \| null | no | — |
+| `perContactLimit` | integer \| null | no | — |
+| `contactUuid` | uuid \| null | no | — |
+| `allowAi` | boolean | no | — |
+| `rules.kind` | `percent` \| `fixed` | yes | — |
+| `rules.value` | integer | yes | max 2147483647 |
+| `rules.maxDiscountCents` | integer \| null | no | — |
+| `rules.minimumCents` | integer | no | min 0 |
+| `rules.productUuids` | uuid[] | no | 0–100 items |
+| `rules.categoryUuids` | uuid[] | no | 0–100 items |
+
+- Explicit store:coupons scope is required; the mcp wildcard does not grant it.
+- Percent values are basis points (500 = 5%) and require maxDiscountCents; fixed values are cents.
+- Use the current version on updates. One benefit per purchase. Personal/per-contact coupons require verified buyer identity.
+- Reservations count toward limits; only paid orders consume a use. Confirmed orders retain their snapshot.
+
+#### `get_store_discount_policy`
+
+Reads an AI agent discount policy.
+
+**Scope:** `store:read`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Before configuring financial limits.
+
+Read the agent financial policy. Requires store.discounts.configure and settings.general permissions.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `agentUuid` | uuid | yes | — |
+
+- Requires store.discounts.configure and settings.general.
+
+#### `save_store_discount_policy`
+
+Configures an agent discount range and eligibility.
+
+**Scope:** `store:discounts` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** When an authorized merchant sets negotiation limits.
+
+Configure AI discount limits with explicit store:discounts scope and financial permission. Version 0 creates a policy. Values use cents or basis points; enabled defaults to false in the product.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `agentUuid` | uuid | yes | — |
+| `version` | integer | yes | min 0 |
+| `enabled` | boolean | yes | — |
+| `allowCoupons` | boolean | yes | — |
+| `minimumValue` | integer | yes | — |
+| `rules` | object | yes | — |
+| `rules.kind` | `percent` \| `fixed` | yes | — |
+| `rules.value` | integer | yes | max 2147483647 |
+| `rules.maxDiscountCents` | integer \| null | no | — |
+| `rules.minimumCents` | integer | no | min 0 |
+| `rules.productUuids` | uuid[] | no | 0–100 items |
+| `rules.categoryUuids` | uuid[] | no | 0–100 items |
+
+- Explicit store:discounts scope is required; generic ai_agents:write cannot change financial policies.
+- Version 0 creates a policy. Use current version thereafter. Disabling stops new concessions, not payment on confirmed orders.
+- manage_store_discount must also be enabled in allowed tools. It can read, simulate, apply or remove a benefit on a conversation cart, but cannot create coupons or change its own limits.
 
 #### `list_store_products`
 
@@ -1708,7 +1814,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `maxTurns` | integer | no | range 1–100 | — |
 | `inactivityTimeoutMinutes` | integer | no | range 1–10080 | — |
 | `bypassPhrases` | string[] \| string \| null | no | — | Null or an empty list restores the default bypass phrases. |
-| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
+| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `manage_store_cart` \| `manage_store_discount` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
 | `crmGroupUuid` | uuid \| null | no | — | — |
 | `allowedTagUuids` | uuid[] | no | 0–100 items | — |
 | `allowedFieldKeys` | string[] | no | 0–100 items | — |
@@ -1727,6 +1833,8 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
+- manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its link or Pix. Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
@@ -1759,7 +1867,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `maxTurns` | integer | no | range 1–100 | — |
 | `inactivityTimeoutMinutes` | integer | no | range 1–10080 | — |
 | `bypassPhrases` | string[] \| string \| null | no | — | Null or an empty list restores the default bypass phrases. |
-| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
+| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `manage_store_cart` \| `manage_store_discount` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
 | `crmGroupUuid` | uuid \| null | no | — | — |
 | `allowedTagUuids` | uuid[] | no | 0–100 items | — |
 | `allowedFieldKeys` | string[] | no | 0–100 items | — |
@@ -1778,5 +1886,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
+- manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its link or Pix. Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.

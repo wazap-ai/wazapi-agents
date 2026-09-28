@@ -6,6 +6,10 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 - `get_catalog_status` — Shows the Meta catalog connection, WABA link, sync counts, and rejected products.
 - `get_storefront_summary` — Returns the storefront configuration, links, categories, shipping options and products.
+- `list_store_coupons` — Lists company coupons with current rules and versions.
+- `save_store_coupon` — Creates, updates, pauses or archives a coupon.
+- `get_store_discount_policy` — Reads an AI agent discount policy.
+- `save_store_discount_policy` — Configures an agent discount range and eligibility.
 - `list_store_products` — Lists products, filterable by category, active state, text and externalId.
 - `get_store_product` — Fetches one product with its variants.
 - `list_store_orders` — Lists store orders, filterable by status.
@@ -44,6 +48,107 @@ _No arguments._
 
 - Category uuids appear only here — a product is filed by one of them.
 - Every price, shipping cost and total in the store is in cents.
+
+#### `list_store_coupons`
+
+Lists company coupons with current rules and versions.
+
+**Scope:** `store:read`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Before editing a campaign.
+
+List coupons in the current company. Requires store.coupons.manage permission.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `page` | integer | no | — |
+
+- Requires store.coupons.manage; public buyers cannot list campaigns.
+
+#### `save_store_coupon`
+
+Creates, updates, pauses or archives a coupon.
+
+**Scope:** `store:coupons` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Only after the merchant authorizes a financial campaign.
+
+Create or update a coupon. Requires explicit store:coupons scope and store.coupons.manage permission. Updates require the current version; archive is permanent. Percent uses basis points with a mandatory monetary cap. No stacking.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `uuid` | uuid | no | — |
+| `version` | integer | no | — |
+| `code` | string | yes | length 2–64 |
+| `name` | string | yes | length 1–120 |
+| `status` | `draft` \| `active` \| `paused` \| `archived` | yes | — |
+| `rules` | object | yes | — |
+| `startsAt` | string \| null | no | — |
+| `endsAt` | string \| null | no | — |
+| `usageLimit` | integer \| null | no | — |
+| `perContactLimit` | integer \| null | no | — |
+| `contactUuid` | uuid \| null | no | — |
+| `allowAi` | boolean | no | — |
+| `rules.kind` | `percent` \| `fixed` | yes | — |
+| `rules.value` | integer | yes | max 2147483647 |
+| `rules.maxDiscountCents` | integer \| null | no | — |
+| `rules.minimumCents` | integer | no | min 0 |
+| `rules.productUuids` | uuid[] | no | 0–100 items |
+| `rules.categoryUuids` | uuid[] | no | 0–100 items |
+
+- Explicit store:coupons scope is required; the mcp wildcard does not grant it.
+- Percent values are basis points (500 = 5%) and require maxDiscountCents; fixed values are cents.
+- Use the current version on updates. One benefit per purchase. Personal/per-contact coupons require verified buyer identity.
+- Reservations count toward limits; only paid orders consume a use. Confirmed orders retain their snapshot.
+
+#### `get_store_discount_policy`
+
+Reads an AI agent discount policy.
+
+**Scope:** `store:read`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Before configuring financial limits.
+
+Read the agent financial policy. Requires store.discounts.configure and settings.general permissions.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `agentUuid` | uuid | yes | — |
+
+- Requires store.discounts.configure and settings.general.
+
+#### `save_store_discount_policy`
+
+Configures an agent discount range and eligibility.
+
+**Scope:** `store:discounts` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** When an authorized merchant sets negotiation limits.
+
+Configure AI discount limits with explicit store:discounts scope and financial permission. Version 0 creates a policy. Values use cents or basis points; enabled defaults to false in the product.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `agentUuid` | uuid | yes | — |
+| `version` | integer | yes | min 0 |
+| `enabled` | boolean | yes | — |
+| `allowCoupons` | boolean | yes | — |
+| `minimumValue` | integer | yes | — |
+| `rules` | object | yes | — |
+| `rules.kind` | `percent` \| `fixed` | yes | — |
+| `rules.value` | integer | yes | max 2147483647 |
+| `rules.maxDiscountCents` | integer \| null | no | — |
+| `rules.minimumCents` | integer | no | min 0 |
+| `rules.productUuids` | uuid[] | no | 0–100 items |
+| `rules.categoryUuids` | uuid[] | no | 0–100 items |
+
+- Explicit store:discounts scope is required; generic ai_agents:write cannot change financial policies.
+- Version 0 creates a policy. Use current version thereafter. Disabling stops new concessions, not payment on confirmed orders.
+- manage_store_discount must also be enabled in allowed tools. It can read, simulate, apply or remove a benefit on a conversation cart, but cannot create coupons or change its own limits.
 
 #### `list_store_products`
 

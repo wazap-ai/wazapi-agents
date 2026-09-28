@@ -85,7 +85,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `maxTurns` | integer | no | range 1–100 | — |
 | `inactivityTimeoutMinutes` | integer | no | range 1–10080 | — |
 | `bypassPhrases` | string[] \| string \| null | no | — | Null or an empty list restores the default bypass phrases. |
-| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
+| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `manage_store_cart` \| `manage_store_discount` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
 | `crmGroupUuid` | uuid \| null | no | — | — |
 | `allowedTagUuids` | uuid[] | no | 0–100 items | — |
 | `allowedFieldKeys` | string[] | no | 0–100 items | — |
@@ -104,6 +104,8 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
+- manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its link or Pix. Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
@@ -136,7 +138,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `maxTurns` | integer | no | range 1–100 | — |
 | `inactivityTimeoutMinutes` | integer | no | range 1–10080 | — |
 | `bypassPhrases` | string[] \| string \| null | no | — | Null or an empty list restores the default bypass phrases. |
-| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
+| `allowedTools` | `transfer_to_human` \| `end_conversation` \| `search_knowledge` \| `search_store_catalog` \| `prepare_store_order` \| `create_store_order` \| `checkout_store_order` \| `manage_store_cart` \| `manage_store_discount` \| `add_tag` \| `set_contact_field` \| `set_conversation_field` \| `set_crm_stage`[] | no | — | — |
 | `crmGroupUuid` | uuid \| null | no | — | — |
 | `allowedTagUuids` | uuid[] | no | 0–100 items | — |
 | `allowedFieldKeys` | string[] | no | 0–100 items | — |
@@ -155,5 +157,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
+- manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its link or Pix. Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.

@@ -321,9 +321,9 @@ Send an invitation email to a human attendant.
 
 **Scope:** `users:write` — **sensitive, never granted by broad access**
 
-**When to use.** Only when the user explicitly asks to invite that person. They must accept before joining. Pending invitations for the same email are renewed. fullName, email and accessProfileUuid are required, the same fields the dashboard requires: ask the user which access profile to use and take its UUID from get_team_configuration_context. Check emailQueued; false means saved but delivery was not queued.
+**When to use.** Only when the user explicitly asks to invite that person. They must accept before joining. Pending invitations for the same email are renewed. fullName, email and accessProfileUuid are required, the same fields the dashboard requires: ask the user which access profile to use and take its UUID from get_team_configuration_context; optional groupUuids come from list_groups. Check emailQueued; false means saved but delivery was not queued.
 
-Invite a human agent by email to the active company. Sends an invitation email; the person must accept before joining. Existing pending invitations are renewed. Requires explicit users:write, settings.team and available plan seats. Only invite when the user explicitly asks.
+Invite a human agent by email to the active company. fullName, email and accessProfileUuid are required: ask the user which access profile to use (UUIDs from get_team_configuration_context). Sends an invitation email; the person must accept before joining. Existing pending invitations are renewed. Requires explicit users:write, settings.team and available plan seats. Only invite when the user explicitly asks.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -345,16 +345,16 @@ Patch a human agent and their local access profile.
 
 **Scope:** `users:write` — **sensitive, never granted by broad access**
 
-**When to use.** Omitted fields are preserved. Guest accounts allow only the local profile change; personal data belongs to their original company. You cannot change your own profile. Credentials, activation, deletion and cross-company links stay in the dashboard.
+**When to use.** Omitted fields are preserved. The access profile can be swapped for another one but never cleared: every person stays linked to a profile. Guest accounts allow only the local profile change; personal data belongs to their original company. You cannot change your own profile. Credentials, activation, deletion and cross-company links stay in the dashboard.
 
-Patch human agent personal details and the access profile in this company. Omitted fields are preserved. Guest personal details and your own access profile cannot be changed. Credentials, deletion and activation remain in the dashboard. Requires explicit users:write and settings.team.
+Patch human agent personal details and the access profile in this company. Omitted fields are preserved. The access profile can be changed but never cleared: every person stays linked to one. Guest personal details and your own access profile cannot be changed. Credentials, deletion and activation remain in the dashboard. Requires explicit users:write and settings.team.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `fullName` | string | no | length 2–120 |
 | `phone` | string \| null | no | — |
 | `externalId` | string \| null | no | — |
-| `accessProfileUuid` | uuid \| null | no | — |
+| `accessProfileUuid` | uuid | no | — |
 | `agentUuid` | uuid | yes | — |
 | `displayName` | string \| null | no | — |
 | `signature` | string \| null | no | — |

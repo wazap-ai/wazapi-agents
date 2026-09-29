@@ -142,17 +142,17 @@ Send a human text reply in an existing WhatsApp, Instagram, or Messenger convers
 
 **Side effects.**
 - Sets the conversation status to `pending`.
-- Assigns the conversation to the token owner, taking it from whoever had it.
+- Assigns the conversation to the token owner only when it has no agent; a conversation someone else holds stays with them (reassigning is a transfer, done in the dashboard).
 - Ends the AI agent parked on the conversation, if there is one. The flow session closes as a handoff and the bot does not come back on the next inbound message.
 - Writes a `conversation.reply.sent` audit entry.
 - When the workspace signs agent messages, the customer receives the text prefixed with the token owner's display name. The stored message and `list_messages` keep the text you sent.
 
-- The reassignment is silent and real — do not use this tool for read-only triage.
+- Claiming an unassigned conversation is silent and real — do not use this tool for read-only triage.
 - Confirm the text with the user before sending. A sent WhatsApp message cannot be recalled.
 - A refused send comes back as `ok: false` with an `error`, **not** as a tool error. Read `ok` before telling anyone the message went out.
 - `reply_window_closed` is the usual refusal: on WhatsApp the window is 24h after the last inbound message, with no exception. Use `send_template_message` instead.
 - Instagram and Messenger have the same 24h window plus, when the workspace enables it, a 7-day human-agent window — so a conversation that refuses free text on WhatsApp may accept it there.
-- If you are an integration sending a notification rather than a person answering, do not use this tool: it takes the conversation away from the AI agent and from whoever was handling it. Send an approved template.
+- If you are an integration sending a notification rather than a person answering, do not use this tool: it takes the conversation away from the AI agent and claims it when nobody holds it. Send an approved template.
 
 #### `send_product_message`
 
@@ -173,7 +173,7 @@ Send buyable product card(s) from the Meta catalog in an existing WhatsApp conve
 
 **Side effects.**
 - Sets the conversation status to `pending`.
-- Assigns the conversation to the token owner.
+- Assigns the conversation to the token owner only when it has no agent, like `send_text_message`.
 - Ends the AI agent parked on the conversation, exactly like `send_text_message`.
 - Writes a `conversation.product.sent` audit entry.
 - When the workspace signs agent messages, the body goes out prefixed with the token owner's display name, like `send_text_message`.
@@ -203,7 +203,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 | `parameters` | string[] | no | — |
 
 **Side effects.**
-- Assigns the conversation to the token owner.
+- Assigns the conversation to the token owner only when it has no agent.
 - Creates the contact and the conversation when addressed by `phone` and they do not exist.
 - Writes a `conversation.template.sent` audit entry.
 

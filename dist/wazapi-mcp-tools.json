@@ -177,7 +177,7 @@
       "mutates": true,
       "sideEffects": [
         "Sets the conversation status to `pending`.",
-        "Assigns the conversation to the token owner, taking it from whoever had it.",
+        "Assigns the conversation to the token owner only when it has no agent; a conversation someone else holds stays with them (reassigning is a transfer, done in the dashboard).",
         "Ends the AI agent parked on the conversation, if there is one. The flow session closes as a handoff and the bot does not come back on the next inbound message.",
         "Writes a `conversation.reply.sent` audit entry.",
         "When the workspace signs agent messages, the customer receives the text prefixed with the token owner's display name. The stored message and `list_messages` keep the text you sent."
@@ -192,7 +192,7 @@
       "mutates": true,
       "sideEffects": [
         "Sets the conversation status to `pending`.",
-        "Assigns the conversation to the token owner.",
+        "Assigns the conversation to the token owner only when it has no agent, like `send_text_message`.",
         "Ends the AI agent parked on the conversation, exactly like `send_text_message`.",
         "Writes a `conversation.product.sent` audit entry.",
         "When the workspace signs agent messages, the body goes out prefixed with the token owner's display name, like `send_text_message`."
@@ -455,7 +455,7 @@
       "requiresPlan": null,
       "mutates": true,
       "sideEffects": [
-        "Assigns the conversation to the token owner.",
+        "Assigns the conversation to the token owner only when it has no agent.",
         "Creates the contact and the conversation when addressed by `phone` and they do not exist.",
         "Writes a `conversation.template.sent` audit entry."
       ]

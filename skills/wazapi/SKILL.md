@@ -122,7 +122,7 @@ A record that does not exist and a record belonging to another company return th
 
 `list_conversations` with `status: "open"` → `list_messages` to read the thread → draft the reply → **confirm with the user** → `send_text_message`.
 
-Remember that sending assigns the conversation to you and sets it to `pending`. Do not use it for read-only triage.
+Remember that sending sets the conversation to `pending` and assigns it to you when it has no agent; one that someone else holds stays with them. Do not use it for read-only triage.
 
 It also takes the conversation away from the AI agent, when one is attending it: the session closes as a handoff and the bot does not answer the next message either. That is the right behaviour when a person is stepping in, and the wrong one when a server is delivering a notice — an integration sends notices as templates, never as free text.
 

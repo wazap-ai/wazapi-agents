@@ -394,7 +394,7 @@
       "requiresPlan": null,
       "mutates": true,
       "sideEffects": [
-        "Creates or renews an invitation and queues its email. Omitted group/profile fields preserve a pending invitation; empty groups or a null profile clear that selection."
+        "Creates or renews an invitation and queues its email. The access profile always replaces the pending one; omitted groups preserve a pending invitation and empty groups clear them."
       ]
     },
     {

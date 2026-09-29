@@ -321,7 +321,7 @@ Send an invitation email to a human attendant.
 
 **Scope:** `users:write` — **sensitive, never granted by broad access**
 
-**When to use.** Only when the user explicitly asks to invite that person. They must accept before joining. Pending invitations for the same email are renewed. Use company group/profile UUIDs from discovery. Check emailQueued; false means saved but delivery was not queued.
+**When to use.** Only when the user explicitly asks to invite that person. They must accept before joining. Pending invitations for the same email are renewed. fullName, email and accessProfileUuid are required, the same fields the dashboard requires: ask the user which access profile to use and take its UUID from get_team_configuration_context. Check emailQueued; false means saved but delivery was not queued.
 
 Invite a human agent by email to the active company. Sends an invitation email; the person must accept before joining. Existing pending invitations are renewed. Requires explicit users:write, settings.team and available plan seats. Only invite when the user explicitly asks.
 
@@ -330,12 +330,12 @@ Invite a human agent by email to the active company. Sends an invitation email; 
 | `fullName` | string | yes | length 2–120 |
 | `phone` | string \| null | no | — |
 | `externalId` | string \| null | no | — |
-| `accessProfileUuid` | uuid \| null | no | — |
+| `accessProfileUuid` | uuid | yes | — |
 | `email` | string | yes | length 0–254 |
 | `groupUuids` | uuid[] | no | 0–1000 items |
 
 **Side effects.**
-- Creates or renews an invitation and queues its email. Omitted group/profile fields preserve a pending invitation; empty groups or a null profile clear that selection.
+- Creates or renews an invitation and queues its email. The access profile always replaces the pending one; omitted groups preserve a pending invitation and empty groups clear them.
 
 - Requires users:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
 
@@ -1802,7 +1802,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `name` | string | yes | length 1–120 | — |
 | `instructions` | string | yes | length 1–12000 | — |
 | `description` | string \| null | no | — | — |
-| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-opus-5` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
+| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
 | `maxTokens` | integer | no | range 1–1500 | — |
 | `language` | `pt-BR` \| `en` \| `es` | no | — | — |
@@ -1855,7 +1855,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `name` | string | no | length 1–120 | — |
 | `instructions` | string | no | length 1–12000 | — |
 | `description` | string \| null | no | — | — |
-| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-opus-5` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
+| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
 | `maxTokens` | integer | no | range 1–1500 | — |
 | `language` | `pt-BR` \| `en` \| `es` | no | — | — |

@@ -594,7 +594,8 @@ Send a Meta approved template message. Address it with exactly one of conversati
 
 - Address it with exactly one of `conversationUuid`, `contactUuid` or `phone`.
 - Pass `channelUuid` when multiple WhatsApp numbers are connected; for a conversation it must match its channel. Pass `language` to select the exact approved translation on that number.
-- `parameters` fills the body variables positionally: the first entry becomes {{1}}.
+- `parameters` fills the body variables positionally: the first entry becomes {{1}}. A body that repeats {{1}} still takes one entry per distinct variable.
+- A missing or blank entry uses the value linked to that variable on the template (for example the contact name), the same as flows and campaigns; with no link it goes out blank.
 - The template must already be `APPROVED`; check with `list_whatsapp_templates` first.
 - A MARKETING template will not create a contact: addressing one by `phone` alone is refused unless the contact already exists. UTILITY and AUTHENTICATION may create it.
 - Every send passes a policy guard before Meta sees it, and a block is a tool error carrying its own code: the contact opted out (`PARAR`), the same content already went out in the last 24h, a frequency cap, a marketing pause on the channel, or a kill switch. A blocked send is a decision of the workspace, not a transient failure — report it, do not retry the same call.

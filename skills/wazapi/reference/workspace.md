@@ -4,7 +4,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 ## Contents
 
-- `get_session_context` — Identifies who you are acting as and which company you are inside.
+- `get_session_context` — Identifies who you are acting as and which companies this connection covers.
 - `list_channels` — Lists the WhatsApp, Instagram and Messenger channels connected to the company.
 - `get_group` — Read group configuration and membership.
 - `create_group` — Create a support group and its CRM pipeline.
@@ -18,18 +18,19 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 #### `get_session_context`
 
-Identifies who you are acting as and which company you are inside.
+Identifies who you are acting as and which companies this connection covers.
 
 **Scope:** none — always available
 
-**When to use.** First call of every session, before planning anything. It is the only tool with no scope requirement, so it always answers.
+**When to use.** First call of every session, before planning anything. It is the only tool with no scope requirement and no company, so it always answers.
 
-Return the authenticated Wazapi actor and active company for this MCP session
+Return the authenticated Wazapi actor and the companies this MCP connection covers. `company` is the one tools act in when there is only one; with several, pass companyUuid from `companies` on every other tool.
 
 _No arguments._
 
-- Read `company.plan` from the response: CRM tools need a plan with CRM and store tools need one with the storefront. Planning around a module the plan does not include wastes the whole turn.
-- Everything you do is attributed to this actor in the audit log.
+- `companies` lists every company you can act in, each with `plan`, `role` and `mcpAvailable`. With more than one, every other tool needs `companyUuid`: pick it by the company name the user said. `company` is filled only when there is exactly one.
+- Read `plan` before planning: CRM tools need a plan with CRM and store tools need one with the storefront. Planning around a module the plan does not include wastes the whole turn.
+- Everything you do is attributed to this actor in the audit log of the company you act in.
 
 #### `list_channels`
 

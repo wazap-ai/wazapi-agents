@@ -9,7 +9,10 @@
     "groups:write",
     "users:write",
     "ai_agents:write",
-    "knowledge:write"
+    "knowledge:write",
+    "data:delete",
+    "messages:media",
+    "store:orders"
   ],
   "tools": [
     {
@@ -749,7 +752,7 @@
       "name": "delete_keyword",
       "category": "flows",
       "summary": "Removes a keyword trigger; the flow stays as it is.",
-      "scope": "flows:write",
+      "scope": "data:delete",
       "requiresPlan": null,
       "mutates": false,
       "sideEffects": []
@@ -879,7 +882,7 @@
       "name": "delete_tag",
       "category": "contacts",
       "summary": "Deletes a tag and removes its name from every contact and conversation.",
-      "scope": "tags:write",
+      "scope": "data:delete",
       "requiresPlan": null,
       "mutates": true,
       "sideEffects": [
@@ -908,7 +911,7 @@
       "name": "delete_custom_field",
       "category": "contacts",
       "summary": "Deletes a custom field definition; stored values stay on the records.",
-      "scope": "contacts:write",
+      "scope": "data:delete",
       "requiresPlan": null,
       "mutates": false,
       "sideEffects": []
@@ -973,7 +976,7 @@
       "name": "delete_crm_stage",
       "category": "crm",
       "summary": "Deletes an open CRM stage, moving its opportunities to a replacement.",
-      "scope": "crm:write",
+      "scope": "data:delete",
       "requiresPlan": "crm",
       "mutates": false,
       "sideEffects": []
@@ -1000,7 +1003,7 @@
       "name": "delete_store_category",
       "category": "store",
       "summary": "Deletes a storefront category; its products stay, without a category.",
-      "scope": "store:write",
+      "scope": "data:delete",
       "requiresPlan": "storefront",
       "mutates": false,
       "sideEffects": []
@@ -1013,6 +1016,102 @@
       "requiresPlan": null,
       "mutates": false,
       "sideEffects": []
+    },
+    {
+      "name": "delete_flow",
+      "category": "flows",
+      "summary": "Permanently deletes a flow and its graph.",
+      "scope": "data:delete",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Irreversible. Keyword triggers and default slots that pointed to the flow stop working."
+      ]
+    },
+    {
+      "name": "delete_contact",
+      "category": "contacts",
+      "summary": "Permanently deletes a contact, with its conversations and CRM opportunities.",
+      "scope": "data:delete",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Irreversible. Conversations and CRM opportunities of the contact go with it."
+      ]
+    },
+    {
+      "name": "delete_store_product",
+      "category": "store",
+      "summary": "Permanently deletes a storefront product and its images.",
+      "scope": "data:delete",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "archive_crm_opportunity",
+      "category": "crm",
+      "summary": "Archives an opportunity, removing it from the board.",
+      "scope": "data:delete",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "delete_whatsapp_template",
+      "category": "whatsapp",
+      "summary": "Deletes a WhatsApp template at Meta and here.",
+      "scope": "data:delete",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Irreversible at Meta. Campaigns, flows and quick sends that use it stop working.",
+        "Meta does not let the same name be reused for about 30 days."
+      ]
+    },
+    {
+      "name": "delete_knowledge_source",
+      "category": "knowledge",
+      "summary": "Deletes a knowledge base source; AI agents stop answering from it.",
+      "scope": "data:delete",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "delete_group",
+      "category": "directory",
+      "summary": "Deletes a team group and its CRM pipeline.",
+      "scope": "data:delete",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Opportunities of the group CRM are removed; conversations assigned to the group lose the group."
+      ]
+    },
+    {
+      "name": "send_media_message",
+      "category": "messaging",
+      "summary": "Sends a file from the company file library in a conversation.",
+      "scope": "messages:media",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "The customer receives it immediately; it cannot be recalled.",
+        "Same conversation effects as send_text_message: status → pending, claimed only when unassigned."
+      ]
+    },
+    {
+      "name": "create_store_order",
+      "category": "store",
+      "summary": "Registers an order for a customer, like the manual order in the dashboard.",
+      "scope": "store:orders",
+      "requiresPlan": "storefront",
+      "mutates": true,
+      "sideEffects": [
+        "Reserves stock and runs the store automation, which messages the buyer.",
+        "Prices always come from the catalog; they cannot be overridden."
+      ]
     }
   ]
 }

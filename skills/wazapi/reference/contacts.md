@@ -18,6 +18,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `create_custom_field` — Creates a custom field for contacts or conversations.
 - `update_custom_field` — Changes label, type, scope or flags of a custom field.
 - `delete_custom_field` — Deletes a custom field definition; stored values stay on the records.
+- `delete_contact` — Permanently deletes a contact, with its conversations and CRM opportunities.
 
 #### `list_contacts`
 
@@ -240,11 +241,11 @@ Rename, recolor or archive a tag. Renaming rewrites the name on every contact an
 
 Deletes a tag and removes its name from every contact and conversation.
 
-**Scope:** `tags:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 
 **When to use.** Only when the user explicitly wants the tag gone. Confirm first; archiving with update_tag is reversible.
 
-Delete a tag and remove its name from every contact and conversation. Contacts and conversations stay.
+Delete a tag and remove its name from every contact and conversation. Contacts and conversations stay. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -252,6 +253,8 @@ Delete a tag and remove its name from every contact and conversation. Contacts a
 
 **Side effects.**
 - Irreversible: the name disappears from contacts and conversations.
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
 
 #### `create_custom_field`
 
@@ -311,12 +314,36 @@ Change label, type, scope or flags of a custom field. Omitted fields keep their 
 
 Deletes a custom field definition; stored values stay on the records.
 
-**Scope:** `contacts:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 
 **When to use.** Only when the user explicitly wants the field gone. Deactivating with update_custom_field is reversible.
 
-Delete a custom field definition. Values already stored on contacts and conversations are kept.
+Delete a custom field definition. Values already stored on contacts and conversations are kept. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `fieldUuid` | uuid | yes | — |
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
+
+#### `delete_contact`
+
+Permanently deletes a contact, with its conversations and CRM opportunities.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only on an explicit request (duplicate, LGPD removal). Confirm with the user first.
+
+Permanently delete a contact. If it has conversations or CRM opportunities they go too, and confirmationName must equal the contact name (or phone). Contacts with store orders cannot be deleted. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `contactUuid` | uuid | yes | — |
+| `confirmationName` | string | no | length 0–200 |
+
+**Side effects.**
+- Irreversible. Conversations and CRM opportunities of the contact go with it.
+
+- When there are conversations or opportunities, the call fails with the counts; show them to the user and retry with `confirmationName` equal to the contact name (or phone).
+- A contact with store orders cannot be deleted.
+- Requires the sensitive scope `data:delete`.

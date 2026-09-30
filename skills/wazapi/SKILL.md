@@ -67,26 +67,29 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
-| `contacts:write` | `create_contact`, `update_contact`, `create_custom_field`, `update_custom_field`, `delete_custom_field` |
+| `contacts:write` | `create_contact`, `update_contact`, `create_custom_field`, `update_custom_field` |
 | `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
 | `conversations:write` | `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
-| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages`, `delete_crm_stage` |
+| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
+| `data:delete` ⚠️ | `delete_keyword`, `delete_tag`, `delete_custom_field`, `delete_crm_stage`, `delete_store_category`, `delete_flow`, `delete_contact`, `delete_store_product`, `archive_crm_opportunity`, `delete_whatsapp_template`, `delete_knowledge_source`, `delete_group` |
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors`, `list_business_schedules` |
-| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `delete_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
+| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
 | `groups:read` | `get_group`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
 | `knowledge:write` ⚠️ | `create_knowledge_source` |
+| `messages:media` ⚠️ | `send_media_message` |
 | `messages:read` | `list_messages` |
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
 | `store:coupons` ⚠️ | `save_store_coupon` |
 | `store:discounts` ⚠️ | `save_store_discount_policy` |
+| `store:orders` ⚠️ | `create_store_order` |
 | `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `get_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
-| `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product`, `create_store_category`, `update_store_category`, `delete_store_category` |
+| `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product`, `create_store_category`, `update_store_category` |
 | `tags:read` | `list_tags` |
-| `tags:write` | `create_tag`, `update_tag`, `delete_tag` |
+| `tags:write` | `create_tag`, `update_tag` |
 | `users:read` | `get_agent`, `get_team_configuration_context`, `list_agents` |
 | `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
@@ -173,31 +176,31 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Session and directory** — `reference/workspace.md`
 
-`get_session_context`, `list_channels`, `get_group`, `create_group`, `update_group`, `get_agent`, `get_team_configuration_context`, `invite_agent`, `update_agent`, `list_groups`, `list_agents`
+`get_session_context`, `list_channels`, `get_group`, `create_group`, `update_group`, `get_agent`, `get_team_configuration_context`, `invite_agent`, `update_agent`, `list_groups`, `list_agents`, `delete_group`
 
 **Conversations and messaging** — `reference/conversations.md`
 
-`list_conversations`, `get_conversation`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`
+`list_conversations`, `get_conversation`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
 
 **Contacts, tags and custom fields** — `reference/contacts.md`
 
-`list_contacts`, `get_contact`, `create_contact`, `update_contact`, `block_contact`, `unblock_contact`, `list_tags`, `create_tag`, `list_custom_field_definitions`, `update_tag`, `delete_tag`, `create_custom_field`, `update_custom_field`, `delete_custom_field`
+`list_contacts`, `get_contact`, `create_contact`, `update_contact`, `block_contact`, `unblock_contact`, `list_tags`, `create_tag`, `list_custom_field_definitions`, `update_tag`, `delete_tag`, `create_custom_field`, `update_custom_field`, `delete_custom_field`, `delete_contact`
 
 **Flows** — `reference/flows.md`
 
-`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `execute_flow`, `list_keywords`, `create_keyword`, `delete_keyword`, `set_default_flow`, `get_flow_errors`, `list_business_schedules`, `create_business_schedule`, `update_business_schedule`, `update_flow`
+`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `execute_flow`, `list_keywords`, `create_keyword`, `delete_keyword`, `set_default_flow`, `get_flow_errors`, `list_business_schedules`, `create_business_schedule`, `update_business_schedule`, `update_flow`, `delete_flow`
 
 **WhatsApp channel and templates** — `reference/whatsapp.md`
 
-`get_whatsapp_config`, `configure_whatsapp`, `list_whatsapp_templates`, `create_whatsapp_template`, `sync_whatsapp_templates`
+`get_whatsapp_config`, `configure_whatsapp`, `list_whatsapp_templates`, `create_whatsapp_template`, `sync_whatsapp_templates`, `delete_whatsapp_template`
 
 **CRM** — `reference/crm.md`
 
-`list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity`, `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages`, `delete_crm_stage`
+`list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity`, `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages`, `delete_crm_stage`, `archive_crm_opportunity`
 
 **Store** — `reference/store.md`
 
-`get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `save_store_coupon`, `get_store_discount_policy`, `save_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics`, `update_store_order_status`, `create_store_product`, `update_store_product`, `create_store_category`, `update_store_category`, `delete_store_category`
+`get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `save_store_coupon`, `get_store_discount_policy`, `save_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics`, `update_store_order_status`, `create_store_product`, `update_store_product`, `create_store_category`, `update_store_category`, `delete_store_category`, `delete_store_product`, `create_store_order`
 
 **AI agents** — `reference/ai-agents.md`
 
@@ -205,4 +208,4 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Knowledge base** — `reference/knowledge.md`
 
-`list_knowledge_sources`, `search_knowledge`, `create_knowledge_source`
+`list_knowledge_sources`, `search_knowledge`, `create_knowledge_source`, `delete_knowledge_source`

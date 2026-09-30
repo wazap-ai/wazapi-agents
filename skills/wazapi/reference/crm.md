@@ -16,6 +16,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `update_crm_stage` — Renames or recolors a CRM stage.
 - `reorder_crm_stages` — Sets the order of all stages of a group pipeline.
 - `delete_crm_stage` — Deletes an open CRM stage, moving its opportunities to a replacement.
+- `archive_crm_opportunity` — Archives an opportunity, removing it from the board.
 
 #### `list_crm_groups`
 
@@ -248,12 +249,12 @@ Set the order of every stage of a group pipeline. Pass all stage uuids; won and 
 
 Deletes an open CRM stage, moving its opportunities to a replacement.
 
-**Scope:** `crm:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 **Plan:** requires a plan with CRM.
 
 **When to use.** Only when the user explicitly wants the step gone. Confirm first.
 
-Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid to move them there first.
+Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid to move them there first. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -261,3 +262,23 @@ Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid t
 | `replacementStageUuid` | uuid \| null | no | — |
 
 - Won and lost stages cannot be deleted. A stage with opportunities needs `replacementStageUuid`.
+- Requires the sensitive scope `data:delete`.
+
+#### `archive_crm_opportunity`
+
+Archives an opportunity, removing it from the board.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with CRM.
+
+**When to use.** For a deal that should not count anymore (duplicate, test). A lost deal belongs in the lost stage instead.
+
+Remove an opportunity from the board (archive). Pass version from get_crm_opportunity. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `opportunityUuid` | uuid | yes | — |
+| `version` | integer | no | — |
+
+- Pass `version` from get_crm_opportunity.
+- Requires the sensitive scope `data:delete`.

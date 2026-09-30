@@ -7,6 +7,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_knowledge_sources` — Lists the AI agent's knowledge base sources with indexing status, plan usage and limits.
 - `search_knowledge` — Runs the same hybrid search the AI agent uses and returns the matching excerpts.
 - `create_knowledge_source` — Adds a text, FAQ or public URL source to the AI agent knowledge base.
+- `delete_knowledge_source` — Deletes a knowledge base source; AI agents stop answering from it.
 
 #### `list_knowledge_sources`
 
@@ -94,3 +95,21 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
   ]
 }
 ```
+
+#### `delete_knowledge_source`
+
+Deletes a knowledge base source; AI agents stop answering from it.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** When content is wrong or outdated and the user wants it gone.
+
+Delete a knowledge base source; AI agents stop answering from it. Refused when it is the only source linked to an agent. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `sourceUuid` | uuid | yes | — |
+
+- Refused when it is the only source linked to an AI agent: that agent would start reading every source of the company.
+- Requires the sensitive scope `data:delete`.

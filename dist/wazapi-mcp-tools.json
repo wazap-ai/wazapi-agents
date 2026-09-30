@@ -493,7 +493,7 @@
     {
       "name": "list_crm_opportunities",
       "category": "crm",
-      "summary": "Lists opportunities in a pipeline, filterable by stage, assignee, due state and text.",
+      "summary": "Lists opportunities in a pipeline, filterable by stage, assignee, due state, text and external id.",
       "scope": "crm:read",
       "requiresPlan": "crm",
       "mutates": false,
@@ -847,7 +847,7 @@
     {
       "name": "update_crm_opportunity",
       "category": "crm",
-      "summary": "Edits an opportunity: title, value, due date, notes, contact or assignee.",
+      "summary": "Edits an opportunity: title, value, due date, notes, contact, assignee or external id.",
       "scope": "crm:write",
       "requiresPlan": "crm",
       "mutates": true,
@@ -957,7 +957,7 @@
     {
       "name": "update_crm_stage",
       "category": "crm",
-      "summary": "Renames or recolors a CRM stage.",
+      "summary": "Renames, recolors or sets the external id of a CRM stage.",
       "scope": "crm:write",
       "requiresPlan": "crm",
       "mutates": false,

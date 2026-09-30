@@ -7,13 +7,13 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_crm_groups` — Lists the groups whose CRM pipelines the actor can access.
 - `get_crm_board` — Returns the full Kanban board of a group: stages and their opportunities.
 - `get_crm_metrics` — Returns aggregated pipeline numbers: open value, overdue, won this month.
-- `list_crm_opportunities` — Lists opportunities in a pipeline, filterable by stage, assignee, due state and text.
+- `list_crm_opportunities` — Lists opportunities in a pipeline, filterable by stage, assignee, due state, text and external id.
 - `get_crm_opportunity` — Fetches one opportunity by uuid.
 - `create_crm_opportunity` — Creates an opportunity in a pipeline stage.
 - `move_crm_opportunity` — Moves an opportunity to another stage, including the terminal won and lost stages.
-- `update_crm_opportunity` — Edits an opportunity: title, value, due date, notes, contact or assignee.
+- `update_crm_opportunity` — Edits an opportunity: title, value, due date, notes, contact, assignee or external id.
 - `create_crm_stage` — Adds an open stage to a group pipeline.
-- `update_crm_stage` — Renames or recolors a CRM stage.
+- `update_crm_stage` — Renames, recolors or sets the external id of a CRM stage.
 - `reorder_crm_stages` — Sets the order of all stages of a group pipeline.
 - `delete_crm_stage` — Deletes an open CRM stage, moving its opportunities to a replacement.
 - `archive_crm_opportunity` — Archives an opportunity, removing it from the board.
@@ -71,24 +71,25 @@ Return aggregated CRM metrics for a group (open value, overdue, won this month)
 
 #### `list_crm_opportunities`
 
-Lists opportunities in a pipeline, filterable by stage, assignee, due state and text.
+Lists opportunities in a pipeline, filterable by stage, assignee, due state, text and external id.
 
 **Scope:** `crm:read`
 **Plan:** requires a plan with CRM.
 
-**When to use.** To find specific opportunities without loading the whole board.
+**When to use.** To find specific opportunities without loading the whole board, or the one matching an id from the customer system (`externalId`).
 
 List opportunities across a CRM pipeline with optional stage, assignee, due and search filters
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `groupUuid` | uuid | yes | — |
-| `stageUuid` | uuid | no | — |
-| `query` | string | no | length 0–120 |
-| `assignedToUserUuid` | uuid | no | — |
-| `due` | `overdue` \| `upcoming` \| `none` | no | — |
-| `page` | integer | no | min 1 |
-| `limit` | integer | no | range 1–50 |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — | — |
+| `stageUuid` | uuid | no | — | — |
+| `query` | string | no | length 0–120 | — |
+| `assignedToUserUuid` | uuid | no | — | — |
+| `due` | `overdue` \| `upcoming` \| `none` | no | — | — |
+| `externalId` | string | no | length 1–120 | Exact match on the opportunity id in the customer system |
+| `page` | integer | no | min 1 | — |
+| `limit` | integer | no | range 1–50 | — |
 
 - Pagination happens in memory over the whole board, so `pagination.total` reflects the board, not the filter.
 
@@ -120,22 +121,24 @@ Creates an opportunity in a pipeline stage.
 
 Create a new opportunity in a CRM pipeline stage
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `groupUuid` | uuid | yes | — |
-| `stageUuid` | uuid | yes | — |
-| `contactUuid` | uuid | yes | — |
-| `assignedUserUuid` | uuid | no | — |
-| `title` | string | yes | length 2–180 |
-| `valueCents` | integer | yes | range 0–999999999999 |
-| `dueAt` | string | no | — |
-| `notes` | string | no | length 0–5000 |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — | — |
+| `stageUuid` | uuid | yes | — | — |
+| `contactUuid` | uuid | yes | — | — |
+| `assignedUserUuid` | uuid | no | — | — |
+| `title` | string | yes | length 2–180 | — |
+| `valueCents` | integer | yes | range 0–999999999999 | — |
+| `dueAt` | string | no | — | — |
+| `notes` | string | no | length 0–5000 | — |
+| `externalId` | string | no | length 1–120 | Id of the opportunity in the customer system; unique among the company non-archived opportunities |
 
 **Side effects.**
 - Writes a `crm.opportunity.created` audit entry.
 
 - `valueCents` is in cents: R$ 1.500,00 is `150000`.
 - The `contactUuid` must already exist — create the contact first if needed.
+- `externalId` is the deal id in the customer system (ERP, old CRM). It is unique among the non-archived opportunities of the company: a repeated one fails, so look it up with list_crm_opportunities first.
 
 #### `move_crm_opportunity`
 
@@ -165,7 +168,7 @@ Move a CRM opportunity to another stage, including terminal won/lost stages. Sup
 
 #### `update_crm_opportunity`
 
-Edits an opportunity: title, value, due date, notes, contact or assignee.
+Edits an opportunity: title, value, due date, notes, contact, assignee or external id.
 
 **Scope:** `crm:write`
 **Plan:** requires a plan with CRM.
@@ -183,6 +186,7 @@ Edit an opportunity: title, value, due date, notes, contact or assignee. To chan
 | `notes` | string \| null | no | — | — |
 | `contactUuid` | uuid | no | — | — |
 | `assignedUserUuid` | uuid \| null | no | — | — |
+| `externalId` | string \| null | no | — | Id of the opportunity in the customer system; null clears it |
 | `version` | integer | no | — | Current version from get_crm_opportunity; the edit fails if someone changed it |
 
 **Side effects.**
@@ -202,30 +206,35 @@ Adds an open stage to a group pipeline.
 
 Add an open stage to the pipeline of a group, before the won and lost stages. Only the group supervisor or the owner can.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `groupUuid` | uuid | yes | — |
-| `name` | string | yes | length 1–60 |
-| `color` | string | yes | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — | — |
+| `name` | string | yes | length 1–60 | — |
+| `color` | string | yes | — | — |
+| `externalId` | string | no | length 1–120 | Id of the stage in the customer system; unique within the pipeline |
 
 - Only the group supervisor or the company owner can configure stages.
+- `externalId` is the stage id in the customer system. It is unique per pipeline, not per company: the same id may repeat across groups (Kommo reuses its won/lost ids in every pipeline).
 
 #### `update_crm_stage`
 
-Renames or recolors a CRM stage.
+Renames, recolors or sets the external id of a CRM stage.
 
 **Scope:** `crm:write`
 **Plan:** requires a plan with CRM.
 
-**When to use.** To rename a step of the pipeline.
+**When to use.** To rename a step of the pipeline or link it to the customer system.
 
 Rename or recolor a CRM stage.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `stageUuid` | uuid | yes | — |
-| `name` | string | no | length 1–60 |
-| `color` | string | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `stageUuid` | uuid | yes | — | — |
+| `name` | string | no | length 1–60 | — |
+| `color` | string | no | — | — |
+| `externalId` | string \| null | no | — | Id of the stage in the customer system; null clears it |
+
+- `externalId: null` clears it; omitting it keeps the current one.
 
 #### `reorder_crm_stages`
 

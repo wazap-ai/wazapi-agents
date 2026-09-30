@@ -8,6 +8,13 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `get_conversation` — Fetches one conversation with contact, assignee and channel.
 - `update_conversation_status` — Moves a conversation between open, pending and resolved.
 - `assign_conversation` — Assigns a conversation to an agent, a group, or neither.
+- `create_conversation_note` — Adds an internal note to a conversation, visible only to the team.
+- `set_conversation_tags` — Adds or removes tags on the conversation itself.
+- `list_markers` — Lists the authenticated user's personal markers.
+- `set_conversation_markers` — Applies or removes your personal markers on a conversation.
+- `list_reminders` — Lists your pending reminders on a conversation.
+- `create_reminder` — Reminds you to get back to a conversation at a given time.
+- `complete_reminder` — Marks one of your reminders as done.
 - `list_messages` — Returns the most recent messages of a conversation, oldest first.
 - `send_text_message` — Sends a free-text reply inside an existing conversation.
 - `send_product_message` — Sends buyable product card(s) from the Meta catalog in a WhatsApp conversation.
@@ -106,6 +113,132 @@ Assign a conversation to a specific user (agent) or group. Use the UUIDs returne
   "assignedToGroupUuid": "…"
 }
 ```
+
+#### `create_conversation_note`
+
+Adds an internal note to a conversation, visible only to the team.
+
+**Scope:** `conversations:write`
+
+**When to use.** To leave context for the next agent (what was promised, what is missing) without messaging the customer.
+
+Add an internal note to a conversation. It is never sent to the customer; mentioned team members are notified.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `text` | string | yes | length 1–4096 |
+| `mentionedUserUuids` | uuid[] | no | 0–20 items |
+
+**Side effects.**
+- Mentioned users are notified.
+
+- Mentions take user uuids from list_agents.
+
+#### `set_conversation_tags`
+
+Adds or removes tags on the conversation itself.
+
+**Scope:** `conversations:write`
+
+**When to use.** To classify a conversation (topic, outcome). To tag the person across all conversations, use update_contact instead.
+
+Add or remove tags on a conversation (not on the contact). Only registered, active tags can be added; see list_tags.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `add` | string[] | no | 0–100 items |
+| `remove` | string[] | no | 0–100 items |
+
+- Only registered, active tags can be added; create one with create_tag if the user wants a new tag.
+
+#### `list_markers`
+
+Lists the authenticated user's personal markers.
+
+**Scope:** `conversations:read`
+
+**When to use.** Before set_conversation_markers, to get the marker uuids.
+
+List the personal markers of the authenticated user. Markers are private to each person and are managed in the inbox.
+
+_No arguments._
+
+- Markers are private: nobody else sees them, and there is no tool to create one.
+
+#### `set_conversation_markers`
+
+Applies or removes your personal markers on a conversation.
+
+**Scope:** `conversations:write`
+
+**When to use.** When the user asks to flag a conversation for themselves ("follow up", "VIP").
+
+Apply or remove personal markers (uuids from list_markers) on a conversation.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `add` | uuid[] | no | 0–20 items |
+| `remove` | uuid[] | no | 0–20 items |
+
+#### `list_reminders`
+
+Lists your pending reminders on a conversation.
+
+**Scope:** `conversations:read`
+
+**When to use.** Before creating another reminder, to avoid duplicates.
+
+List the pending personal reminders of the authenticated user on a conversation.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+
+#### `create_reminder`
+
+Reminds you to get back to a conversation at a given time.
+
+**Scope:** `conversations:write`
+
+**When to use.** When the user says "remind me to call this lead on Friday".
+
+Remind the authenticated user to get back to a conversation at a given time (ISO 8601, up to one year ahead).
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `remindAt` | string | yes | — |
+| `note` | string | no | length 0–500 |
+
+**Side effects.**
+- The reminder notifies the authenticated user in the dashboard at that time.
+
+- `remindAt` is ISO 8601 with offset, from now up to one year ahead.
+
+```json
+{
+  "conversationUuid": "<conversation uuid>",
+  "remindAt": "2026-10-03T14:00:00-03:00",
+  "note": "Retomar proposta"
+}
+```
+
+#### `complete_reminder`
+
+Marks one of your reminders as done.
+
+**Scope:** `conversations:write`
+
+**When to use.** After the follow-up happened.
+
+Mark one of your reminders as done.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `reminderUuid` | uuid | yes | — |
 
 #### `list_messages`
 

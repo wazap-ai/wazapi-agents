@@ -8,6 +8,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `configure_whatsapp` — Rewrites the WhatsApp Cloud API credentials of the company.
 - `list_whatsapp_templates` — Lists Meta message templates, defaulting to the approved ones.
 - `create_whatsapp_template` — Submits a new message template to Meta for review.
+- `sync_whatsapp_templates` — Pulls the status and content of every template from Meta.
 
 #### `get_whatsapp_config`
 
@@ -121,3 +122,18 @@ Submit a new message template to Meta for review. Approval is asynchronous: the 
   ]
 }
 ```
+
+#### `sync_whatsapp_templates`
+
+Pulls the status and content of every template from Meta.
+
+**Scope:** `whatsapp:write`
+
+**When to use.** After create_whatsapp_template, to see whether Meta approved it, or when a template was edited in the WhatsApp Manager.
+
+Pull status, category and components of every template from Meta: how a PENDING template becomes APPROVED here without opening the dashboard.
+
+_No arguments._
+
+**Side effects.**
+- A template deleted in the WhatsApp Manager is removed here too, so it can no longer be sent.

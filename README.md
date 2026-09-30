@@ -4,7 +4,7 @@ Este repositório publica a **skill do Wazapi**: o documento que ensina um agent
 um workspace Wazapi pelo servidor MCP — ler e responder conversas, cuidar de contatos e etiquetas,
 montar fluxos, tocar o CRM e a loja, e enviar templates aprovados pela Meta.
 
-Endpoint MCP: `https://wazapi.io/mcp` (Streamable HTTP) · versão do pacote: `1.4.1`
+Endpoint MCP: `https://wazapi.io/mcp` (Streamable HTTP) · versão do pacote: `1.5.0`
 
 ## Instalação
 
@@ -46,7 +46,11 @@ Para clientes que procuram um arquivo único — Codex e Kimi leem `AGENTS.md`, 
 
 ## Credencial
 
-O tenant vem do token: não existe seletor de empresa e nenhum agente alcança outro workspace.
+Uma conexão pode valer para todas as empresas em que a pessoa é membro (o padrão no
+consentimento e no token estático) ou só para uma. Com várias, o agente descobre a lista em
+`get_session_context` e passa `companyUuid` em cada chamada, escolhendo pela empresa que a pessoa
+nomeou; nenhuma conexão alcança empresa de que a pessoa não é membro, e cada ação obedece ao perfil
+de acesso dela naquela empresa.
 
 - **OAuth 2.1** — o caminho preferido para clientes remotos. A tela de consentimento lista uma
   permissão por caixa, e o que ficar marcado é o que o token carrega.

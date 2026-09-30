@@ -15,7 +15,7 @@
     {
       "name": "get_session_context",
       "category": "session",
-      "summary": "Identifies who you are acting as and which company you are inside.",
+      "summary": "Identifies who you are acting as and which companies this connection covers.",
       "scope": null,
       "requiresPlan": null,
       "mutates": false,

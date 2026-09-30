@@ -64,26 +64,29 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
-| `contacts:write` | `create_contact`, `update_contact`, `create_custom_field`, `update_custom_field`, `delete_custom_field` |
+| `contacts:write` | `create_contact`, `update_contact`, `create_custom_field`, `update_custom_field` |
 | `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
 | `conversations:write` | `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
-| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages`, `delete_crm_stage` |
+| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
+| `data:delete` ⚠️ | `delete_keyword`, `delete_tag`, `delete_custom_field`, `delete_crm_stage`, `delete_store_category`, `delete_flow`, `delete_contact`, `delete_store_product`, `archive_crm_opportunity`, `delete_whatsapp_template`, `delete_knowledge_source`, `delete_group` |
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors`, `list_business_schedules` |
-| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `delete_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
+| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
 | `groups:read` | `get_group`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
 | `knowledge:write` ⚠️ | `create_knowledge_source` |
+| `messages:media` ⚠️ | `send_media_message` |
 | `messages:read` | `list_messages` |
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
 | `store:coupons` ⚠️ | `save_store_coupon` |
 | `store:discounts` ⚠️ | `save_store_discount_policy` |
+| `store:orders` ⚠️ | `create_store_order` |
 | `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `get_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
-| `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product`, `create_store_category`, `update_store_category`, `delete_store_category` |
+| `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product`, `create_store_category`, `update_store_category` |
 | `tags:read` | `list_tags` |
-| `tags:write` | `create_tag`, `update_tag`, `delete_tag` |
+| `tags:write` | `create_tag`, `update_tag` |
 | `users:read` | `get_agent`, `get_team_configuration_context`, `list_agents` |
 | `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
@@ -397,6 +400,27 @@ _No arguments._
 - Use these agent UUIDs for team management and assignment. Never invent one.
 - `available` is the answer to "will this person get the conversation": it means the agent set themselves to online, is active, and the dashboard has seen them in the last few minutes (`present`). `status` alone is a stated intention, not proof anyone is at the desk.
 - Assigning to an unavailable agent is allowed and sometimes correct, but automatic distribution and the `assign_agent` flow block skip them. Say so when you assign one.
+
+#### `delete_group`
+
+Deletes a team group and its CRM pipeline.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only on an explicit request. Confirm first.
+
+Delete a team group. If its CRM pipeline has opportunities they are removed, and confirmationName must equal the group name. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `confirmationName` | string | no | length 0–100 |
+
+**Side effects.**
+- Opportunities of the group CRM are removed; conversations assigned to the group lose the group.
+
+- When the pipeline has opportunities, the call fails with the count; retry with `confirmationName` equal to the group name after the user agrees.
+- Requires `settings.team` and the sensitive scope `data:delete`.
 
 ### Conversations
 
@@ -742,6 +766,31 @@ Send a Meta approved template message. Address it with exactly one of conversati
 }
 ```
 
+#### `send_media_message`
+
+Sends a file from the company file library in a conversation.
+
+**Scope:** `messages:media` — **sensitive, never granted by broad access**
+
+**When to use.** When the user asks to send a catalog PDF, a photo or an audio that is already in Arquivos. Uploading new files is done in the dashboard.
+
+Send a file from the company file library (image, video, audio or document) in a conversation. Audio can go as a WhatsApp voice note. Requires the sensitive messages:media scope.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `fileUuid` | uuid | yes | — |
+| `caption` | string | no | length 0–1024 |
+| `asVoice` | boolean | no | — |
+
+**Side effects.**
+- The customer receives it immediately; it cannot be recalled.
+- Same conversation effects as send_text_message: status → pending, claimed only when unassigned.
+
+- Needs the 24h window open, like any free-form message.
+- `asVoice` sends an audio file as a WhatsApp voice note.
+- Requires the sensitive scope `messages:media` and the Files permission. At most 30 sends every 10 minutes per person.
+
 ### Contacts
 
 #### `list_contacts`
@@ -965,11 +1014,11 @@ Rename, recolor or archive a tag. Renaming rewrites the name on every contact an
 
 Deletes a tag and removes its name from every contact and conversation.
 
-**Scope:** `tags:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 
 **When to use.** Only when the user explicitly wants the tag gone. Confirm first; archiving with update_tag is reversible.
 
-Delete a tag and remove its name from every contact and conversation. Contacts and conversations stay.
+Delete a tag and remove its name from every contact and conversation. Contacts and conversations stay. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -977,6 +1026,8 @@ Delete a tag and remove its name from every contact and conversation. Contacts a
 
 **Side effects.**
 - Irreversible: the name disappears from contacts and conversations.
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
 
 #### `create_custom_field`
 
@@ -1036,15 +1087,39 @@ Change label, type, scope or flags of a custom field. Omitted fields keep their 
 
 Deletes a custom field definition; stored values stay on the records.
 
-**Scope:** `contacts:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 
 **When to use.** Only when the user explicitly wants the field gone. Deactivating with update_custom_field is reversible.
 
-Delete a custom field definition. Values already stored on contacts and conversations are kept.
+Delete a custom field definition. Values already stored on contacts and conversations are kept. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `fieldUuid` | uuid | yes | — |
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
+
+#### `delete_contact`
+
+Permanently deletes a contact, with its conversations and CRM opportunities.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only on an explicit request (duplicate, LGPD removal). Confirm with the user first.
+
+Permanently delete a contact. If it has conversations or CRM opportunities they go too, and confirmationName must equal the contact name (or phone). Contacts with store orders cannot be deleted. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `contactUuid` | uuid | yes | — |
+| `confirmationName` | string | no | length 0–200 |
+
+**Side effects.**
+- Irreversible. Conversations and CRM opportunities of the contact go with it.
+
+- When there are conversations or opportunities, the call fails with the counts; show them to the user and retry with `confirmationName` equal to the contact name (or phone).
+- A contact with store orders cannot be deleted.
+- Requires the sensitive scope `data:delete`.
 
 ### Flows
 
@@ -1344,15 +1419,17 @@ Make a flow start when an inbound message matches a keyword. Without a trigger o
 
 Removes a keyword trigger; the flow stays as it is.
 
-**Scope:** `flows:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 
 **When to use.** When a trigger points at the wrong flow or is stealing traffic. Confirm with the user first.
 
-Remove a keyword trigger. The flow itself is not touched.
+Remove a keyword trigger. The flow itself is not touched. Requires the sensitive data:delete scope.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `keywordUuid` | uuid | yes | — |
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
 
 #### `set_default_flow`
 
@@ -1530,6 +1607,25 @@ Rename a flow or change the channels it supports. The graph is edited with updat
 | `name` | string | no | length 1–120 |
 | `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
 
+#### `delete_flow`
+
+Permanently deletes a flow and its graph.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only when the user explicitly asks to delete that flow. Confirm the name first; draft instead of delete when in doubt.
+
+Permanently delete a flow with its graph. Keyword triggers and default slots that pointed to it stop working. Requires the sensitive data:delete scope.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — |
+
+**Side effects.**
+- Irreversible. Keyword triggers and default slots that pointed to the flow stop working.
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
+
 ### WhatsApp channel and templates
 
 #### `get_whatsapp_config`
@@ -1659,6 +1755,26 @@ _No arguments._
 
 **Side effects.**
 - A template deleted in the WhatsApp Manager is removed here too, so it can no longer be sent.
+
+#### `delete_whatsapp_template`
+
+Deletes a WhatsApp template at Meta and here.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only on an explicit request. Confirm the name and language first.
+
+Delete a template at Meta and here. Meta blocks reusing the same name for about 30 days. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `templateUuid` | uuid | yes | — |
+
+**Side effects.**
+- Irreversible at Meta. Campaigns, flows and quick sends that use it stop working.
+- Meta does not let the same name be reused for about 30 days.
+
+- Requires the sensitive scope `data:delete`.
 
 ### CRM
 
@@ -1893,12 +2009,12 @@ Set the order of every stage of a group pipeline. Pass all stage uuids; won and 
 
 Deletes an open CRM stage, moving its opportunities to a replacement.
 
-**Scope:** `crm:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 **Plan:** requires a plan with CRM.
 
 **When to use.** Only when the user explicitly wants the step gone. Confirm first.
 
-Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid to move them there first.
+Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid to move them there first. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -1906,6 +2022,26 @@ Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid t
 | `replacementStageUuid` | uuid \| null | no | — |
 
 - Won and lost stages cannot be deleted. A stage with opportunities needs `replacementStageUuid`.
+- Requires the sensitive scope `data:delete`.
+
+#### `archive_crm_opportunity`
+
+Archives an opportunity, removing it from the board.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with CRM.
+
+**When to use.** For a deal that should not count anymore (duplicate, test). A lost deal belongs in the lost stage instead.
+
+Remove an opportunity from the board (archive). Pass version from get_crm_opportunity. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `opportunityUuid` | uuid | yes | — |
+| `version` | integer | no | — |
+
+- Pass `version` from get_crm_opportunity.
+- Requires the sensitive scope `data:delete`.
 
 ### Store
 
@@ -2269,16 +2405,67 @@ Rename or reposition a storefront category.
 
 Deletes a storefront category; its products stay, without a category.
 
-**Scope:** `store:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 **Plan:** requires a plan with the storefront.
 
 **When to use.** Only when the user explicitly wants the category gone.
 
-Delete a storefront category. Its products stay, without a category.
+Delete a storefront category. Its products stay, without a category. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `categoryUuid` | uuid | yes | — |
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
+
+#### `delete_store_product`
+
+Permanently deletes a storefront product and its images.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Only on an explicit request. Deactivating with update_store_product is reversible.
+
+Permanently delete a storefront product and its images. Past orders keep their items. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `productUuid` | uuid | yes | — |
+
+- Past orders keep their items.
+- Requires the sensitive scope `data:delete`.
+
+#### `create_store_order`
+
+Registers an order for a customer, like the manual order in the dashboard.
+
+**Scope:** `store:orders` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** When a sale was closed in the conversation and the user wants it in the store.
+
+Register an order for a customer, like the manual order in the dashboard: prices from the catalog, stock reserved and the buyer notified by the store automation. idempotencyKey makes a retry return the same order. Requires the sensitive store:orders scope.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `customerName` | string | yes | length 1–120 |
+| `customerPhone` | string | yes | length 8–20 |
+| `items` | object[] | yes | 1–50 items |
+| `shippingOptionUuid` | uuid \| null | no | — |
+| `paymentMethod` | `pix` \| `link` \| `on_delivery` | yes | — |
+| `notes` | string \| null | no | — |
+| `idempotencyKey` | string | yes | length 1–100 |
+| `items[].productUuid` | uuid | yes | — |
+| `items[].variantUuid` | uuid \| null | no | — |
+| `items[].quantity` | integer | yes | range 1–999 |
+
+**Side effects.**
+- Reserves stock and runs the store automation, which messages the buyer.
+- Prices always come from the catalog; they cannot be overridden.
+
+- Reuse the same `idempotencyKey` when retrying: it returns the first order instead of creating another.
+- Requires the sensitive scope `store:orders`. At most 30 orders every 10 minutes per person.
 
 ### Knowledge base
 
@@ -2368,6 +2555,24 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
   ]
 }
 ```
+
+#### `delete_knowledge_source`
+
+Deletes a knowledge base source; AI agents stop answering from it.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** When content is wrong or outdated and the user wants it gone.
+
+Delete a knowledge base source; AI agents stop answering from it. Refused when it is the only source linked to an agent. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `sourceUuid` | uuid | yes | — |
+
+- Refused when it is the only source linked to an AI agent: that agent would start reading every source of the company.
+- Requires the sensitive scope `data:delete`.
 
 ### AI agents
 

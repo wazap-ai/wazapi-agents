@@ -15,6 +15,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `update_agent` — Patch a human agent and their local access profile.
 - `list_groups` — Lists the support groups of the company.
 - `list_agents` — Lists the users of the company with the uuids used for assignment.
+- `delete_group` — Deletes a team group and its CRM pipeline.
 
 #### `get_session_context`
 
@@ -243,3 +244,24 @@ _No arguments._
 - Use these agent UUIDs for team management and assignment. Never invent one.
 - `available` is the answer to "will this person get the conversation": it means the agent set themselves to online, is active, and the dashboard has seen them in the last few minutes (`present`). `status` alone is a stated intention, not proof anyone is at the desk.
 - Assigning to an unavailable agent is allowed and sometimes correct, but automatic distribution and the `assign_agent` flow block skip them. Say so when you assign one.
+
+#### `delete_group`
+
+Deletes a team group and its CRM pipeline.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only on an explicit request. Confirm first.
+
+Delete a team group. If its CRM pipeline has opportunities they are removed, and confirmationName must equal the group name. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `confirmationName` | string | no | length 0–100 |
+
+**Side effects.**
+- Opportunities of the group CRM are removed; conversations assigned to the group lose the group.
+
+- When the pipeline has opportunities, the call fails with the count; retry with `confirmationName` equal to the group name after the user agrees.
+- Requires `settings.team` and the sensitive scope `data:delete`.

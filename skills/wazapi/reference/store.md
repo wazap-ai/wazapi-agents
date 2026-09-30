@@ -21,6 +21,8 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `create_store_category` — Creates a storefront category.
 - `update_store_category` — Renames or repositions a storefront category.
 - `delete_store_category` — Deletes a storefront category; its products stay, without a category.
+- `delete_store_product` — Permanently deletes a storefront product and its images.
+- `create_store_order` — Registers an order for a customer, like the manual order in the dashboard.
 
 #### `get_catalog_status`
 
@@ -382,13 +384,64 @@ Rename or reposition a storefront category.
 
 Deletes a storefront category; its products stay, without a category.
 
-**Scope:** `store:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 **Plan:** requires a plan with the storefront.
 
 **When to use.** Only when the user explicitly wants the category gone.
 
-Delete a storefront category. Its products stay, without a category.
+Delete a storefront category. Its products stay, without a category. Requires data:delete.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `categoryUuid` | uuid | yes | — |
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
+
+#### `delete_store_product`
+
+Permanently deletes a storefront product and its images.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Only on an explicit request. Deactivating with update_store_product is reversible.
+
+Permanently delete a storefront product and its images. Past orders keep their items. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `productUuid` | uuid | yes | — |
+
+- Past orders keep their items.
+- Requires the sensitive scope `data:delete`.
+
+#### `create_store_order`
+
+Registers an order for a customer, like the manual order in the dashboard.
+
+**Scope:** `store:orders` — **sensitive, never granted by broad access**
+**Plan:** requires a plan with the storefront.
+
+**When to use.** When a sale was closed in the conversation and the user wants it in the store.
+
+Register an order for a customer, like the manual order in the dashboard: prices from the catalog, stock reserved and the buyer notified by the store automation. idempotencyKey makes a retry return the same order. Requires the sensitive store:orders scope.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `customerName` | string | yes | length 1–120 |
+| `customerPhone` | string | yes | length 8–20 |
+| `items` | object[] | yes | 1–50 items |
+| `shippingOptionUuid` | uuid \| null | no | — |
+| `paymentMethod` | `pix` \| `link` \| `on_delivery` | yes | — |
+| `notes` | string \| null | no | — |
+| `idempotencyKey` | string | yes | length 1–100 |
+| `items[].productUuid` | uuid | yes | — |
+| `items[].variantUuid` | uuid \| null | no | — |
+| `items[].quantity` | integer | yes | range 1–999 |
+
+**Side effects.**
+- Reserves stock and runs the store automation, which messages the buyer.
+- Prices always come from the catalog; they cannot be overridden.
+
+- Reuse the same `idempotencyKey` when retrying: it returns the first order instead of creating another.
+- Requires the sensitive scope `store:orders`. At most 30 orders every 10 minutes per person.

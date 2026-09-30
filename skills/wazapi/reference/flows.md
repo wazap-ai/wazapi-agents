@@ -23,6 +23,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `create_business_schedule` — Creates a named business schedule.
 - `update_business_schedule` — Replaces the hours of a business schedule.
 - `update_flow` — Renames a flow or changes the channels it supports.
+- `delete_flow` — Permanently deletes a flow and its graph.
 
 #### `list_flow_block_types`
 
@@ -320,15 +321,17 @@ Make a flow start when an inbound message matches a keyword. Without a trigger o
 
 Removes a keyword trigger; the flow stays as it is.
 
-**Scope:** `flows:write`
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
 
 **When to use.** When a trigger points at the wrong flow or is stealing traffic. Confirm with the user first.
 
-Remove a keyword trigger. The flow itself is not touched.
+Remove a keyword trigger. The flow itself is not touched. Requires the sensitive data:delete scope.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `keywordUuid` | uuid | yes | — |
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.
 
 #### `set_default_flow`
 
@@ -505,3 +508,22 @@ Rename a flow or change the channels it supports. The graph is edited with updat
 | `flowUuid` | uuid | yes | — |
 | `name` | string | no | length 1–120 |
 | `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+
+#### `delete_flow`
+
+Permanently deletes a flow and its graph.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only when the user explicitly asks to delete that flow. Confirm the name first; draft instead of delete when in doubt.
+
+Permanently delete a flow with its graph. Keyword triggers and default slots that pointed to it stop working. Requires the sensitive data:delete scope.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — |
+
+**Side effects.**
+- Irreversible. Keyword triggers and default slots that pointed to the flow stop working.
+
+- Requires the sensitive scope `data:delete`, which broad access does not grant.

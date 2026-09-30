@@ -9,6 +9,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_whatsapp_templates` — Lists Meta message templates, defaulting to the approved ones.
 - `create_whatsapp_template` — Submits a new message template to Meta for review.
 - `sync_whatsapp_templates` — Pulls the status and content of every template from Meta.
+- `delete_whatsapp_template` — Deletes a WhatsApp template at Meta and here.
 
 #### `get_whatsapp_config`
 
@@ -137,3 +138,23 @@ _No arguments._
 
 **Side effects.**
 - A template deleted in the WhatsApp Manager is removed here too, so it can no longer be sent.
+
+#### `delete_whatsapp_template`
+
+Deletes a WhatsApp template at Meta and here.
+
+**Scope:** `data:delete` — **sensitive, never granted by broad access**
+
+**When to use.** Only on an explicit request. Confirm the name and language first.
+
+Delete a template at Meta and here. Meta blocks reusing the same name for about 30 days. Requires data:delete.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `templateUuid` | uuid | yes | — |
+
+**Side effects.**
+- Irreversible at Meta. Campaigns, flows and quick sends that use it stop working.
+- Meta does not let the same name be reused for about 30 days.
+
+- Requires the sensitive scope `data:delete`.

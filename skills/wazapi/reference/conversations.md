@@ -19,6 +19,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `send_text_message` — Sends a free-text reply inside an existing conversation.
 - `send_product_message` — Sends buyable product card(s) from the Meta catalog in a WhatsApp conversation.
 - `send_template_message` — Sends an approved Meta template, opening the conversation if needed.
+- `send_media_message` — Sends a file from the company file library in a conversation.
 
 #### `list_conversations`
 
@@ -359,3 +360,28 @@ Send a Meta approved template message. Address it with exactly one of conversati
   ]
 }
 ```
+
+#### `send_media_message`
+
+Sends a file from the company file library in a conversation.
+
+**Scope:** `messages:media` — **sensitive, never granted by broad access**
+
+**When to use.** When the user asks to send a catalog PDF, a photo or an audio that is already in Arquivos. Uploading new files is done in the dashboard.
+
+Send a file from the company file library (image, video, audio or document) in a conversation. Audio can go as a WhatsApp voice note. Requires the sensitive messages:media scope.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `fileUuid` | uuid | yes | — |
+| `caption` | string | no | length 0–1024 |
+| `asVoice` | boolean | no | — |
+
+**Side effects.**
+- The customer receives it immediately; it cannot be recalled.
+- Same conversation effects as send_text_message: status → pending, claimed only when unassigned.
+
+- Needs the 24h window open, like any free-form message.
+- `asVoice` sends an audio file as a WhatsApp voice note.
+- Requires the sensitive scope `messages:media` and the Files permission. At most 30 sends every 10 minutes per person.

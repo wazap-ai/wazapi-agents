@@ -12,6 +12,10 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `create_crm_opportunity` — Creates an opportunity in a pipeline stage.
 - `move_crm_opportunity` — Moves an opportunity to another stage, including the terminal won and lost stages.
 - `update_crm_opportunity` — Edits an opportunity: title, value, due date, notes, contact or assignee.
+- `create_crm_stage` — Adds an open stage to a group pipeline.
+- `update_crm_stage` — Renames or recolors a CRM stage.
+- `reorder_crm_stages` — Sets the order of all stages of a group pipeline.
+- `delete_crm_stage` — Deletes an open CRM stage, moving its opportunities to a replacement.
 
 #### `list_crm_groups`
 
@@ -185,3 +189,75 @@ Edit an opportunity: title, value, due date, notes, contact or assignee. To chan
 
 - Pass `version` from get_crm_opportunity: if someone edited the card in between, the call fails instead of overwriting their change. Re-read and decide again.
 - The assignee must be a member of the pipeline group.
+
+#### `create_crm_stage`
+
+Adds an open stage to a group pipeline.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** When the sales process gains a step.
+
+Add an open stage to the pipeline of a group, before the won and lost stages. Only the group supervisor or the owner can.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `name` | string | yes | length 1–60 |
+| `color` | string | yes | — |
+
+- Only the group supervisor or the company owner can configure stages.
+
+#### `update_crm_stage`
+
+Renames or recolors a CRM stage.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** To rename a step of the pipeline.
+
+Rename or recolor a CRM stage.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `stageUuid` | uuid | yes | — |
+| `name` | string | no | length 1–60 |
+| `color` | string | no | — |
+
+#### `reorder_crm_stages`
+
+Sets the order of all stages of a group pipeline.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** When the user reorders the pipeline. Read the stage uuids with get_crm_board.
+
+Set the order of every stage of a group pipeline. Pass all stage uuids; won and lost must be the last two.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `stageUuids` | uuid[] | yes | 2–50 items |
+
+- Pass every stage; won and lost must be the last two, in that order.
+
+#### `delete_crm_stage`
+
+Deletes an open CRM stage, moving its opportunities to a replacement.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** Only when the user explicitly wants the step gone. Confirm first.
+
+Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid to move them there first.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `stageUuid` | uuid | yes | — |
+| `replacementStageUuid` | uuid \| null | no | — |
+
+- Won and lost stages cannot be deleted. A stage with opportunities needs `replacementStageUuid`.

@@ -19,6 +19,10 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `delete_keyword` — Removes a keyword trigger; the flow stays as it is.
 - `set_default_flow` — Chooses the flow for first contact, for unmatched messages or for storefront orders.
 - `get_flow_errors` — Lists a flow's errors from the last 7 days, block by block.
+- `list_business_schedules` — Lists the business schedules with weekly hours, exceptions and whether each is open now.
+- `create_business_schedule` — Creates a named business schedule.
+- `update_business_schedule` — Replaces the hours of a business schedule.
+- `update_flow` — Renames a flow or changes the channels it supports.
 
 #### `list_flow_block_types`
 
@@ -359,3 +363,145 @@ List the last errors of a flow in the past 7 days (block, node key, message, whe
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
+
+#### `list_business_schedules`
+
+Lists the business schedules with weekly hours, exceptions and whether each is open now.
+
+**Scope:** `flows:read`
+
+**When to use.** Before building a business_hours block or answering "are we open on the holiday?".
+
+List the named business schedules with their weekly hours, date exceptions and whether they are open right now.
+
+_No arguments._
+
+#### `create_business_schedule`
+
+Creates a named business schedule.
+
+**Scope:** `flows:write`
+
+**When to use.** When a flow must branch on opening hours and the right schedule does not exist yet.
+
+Create a named business schedule, used by the business_hours flow block and by group auto-close. The first schedule of the company becomes the default.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | yes | length 1–120 | — |
+| `timezone` | string | yes | length 1–64 | IANA time zone, e.g. America/Sao_Paulo |
+| `weekly` | object | yes | — | Opening intervals per weekday (HH:mm); an empty list means closed that day |
+| `exceptions` | object[] | no | 0–100 items | Dates that override the week (closed, or special hours). Omitted on update keeps the current ones. |
+| `useCompanyHolidays` | boolean | no | — | — |
+| `weekly.mon` | object[] | yes | 0–6 items | — |
+| `weekly.tue` | object[] | yes | 0–6 items | — |
+| `weekly.wed` | object[] | yes | 0–6 items | — |
+| `weekly.thu` | object[] | yes | 0–6 items | — |
+| `weekly.fri` | object[] | yes | 0–6 items | — |
+| `weekly.sat` | object[] | yes | 0–6 items | — |
+| `weekly.sun` | object[] | yes | 0–6 items | — |
+| `exceptions[].id` | string | yes | length 1–40 | — |
+| `exceptions[].label` | string | yes | length 1–120 | — |
+| `exceptions[].start` | string | yes | — | — |
+| `exceptions[].end` | string | yes | — | — |
+| `exceptions[].recurring` | boolean | yes | — | — |
+| `exceptions[].closed` | boolean | yes | — | — |
+| `exceptions[].intervals` | object[] | no | 0–6 items | — |
+
+- The first schedule of the company becomes the default, used by group auto-close.
+- Intervals are HH:mm per weekday; an empty list closes the day. Company holidays apply unless `useCompanyHolidays` is false.
+
+```json
+{
+  "name": "Comercial",
+  "timezone": "America/Sao_Paulo",
+  "weekly": {
+    "mon": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "tue": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "wed": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "thu": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "fri": [
+      {
+        "start": "08:00",
+        "end": "17:00"
+      }
+    ],
+    "sat": [],
+    "sun": []
+  }
+}
+```
+
+#### `update_business_schedule`
+
+Replaces the hours of a business schedule.
+
+**Scope:** `flows:write`
+
+**When to use.** When opening hours change. Read the current one with list_business_schedules first.
+
+Replace the name, time zone and weekly hours of a schedule. Flows that use it follow the new hours immediately.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `scheduleUuid` | uuid | yes | — | — |
+| `name` | string | yes | length 1–120 | — |
+| `timezone` | string | yes | length 1–64 | IANA time zone, e.g. America/Sao_Paulo |
+| `weekly` | object | yes | — | Opening intervals per weekday (HH:mm); an empty list means closed that day |
+| `exceptions` | object[] | no | 0–100 items | Dates that override the week (closed, or special hours). Omitted on update keeps the current ones. |
+| `useCompanyHolidays` | boolean | no | — | — |
+| `weekly.mon` | object[] | yes | 0–6 items | — |
+| `weekly.tue` | object[] | yes | 0–6 items | — |
+| `weekly.wed` | object[] | yes | 0–6 items | — |
+| `weekly.thu` | object[] | yes | 0–6 items | — |
+| `weekly.fri` | object[] | yes | 0–6 items | — |
+| `weekly.sat` | object[] | yes | 0–6 items | — |
+| `weekly.sun` | object[] | yes | 0–6 items | — |
+| `exceptions[].id` | string | yes | length 1–40 | — |
+| `exceptions[].label` | string | yes | length 1–120 | — |
+| `exceptions[].start` | string | yes | — | — |
+| `exceptions[].end` | string | yes | — | — |
+| `exceptions[].recurring` | boolean | yes | — | — |
+| `exceptions[].closed` | boolean | yes | — | — |
+| `exceptions[].intervals` | object[] | no | 0–6 items | — |
+
+**Side effects.**
+- Every flow and group using the schedule follows the new hours immediately.
+
+- `weekly` is replaced as a whole; omitted `exceptions` keep the current ones.
+
+#### `update_flow`
+
+Renames a flow or changes the channels it supports.
+
+**Scope:** `flows:write`
+
+**When to use.** For metadata only. The graph goes through update_flow_graph and activation through update_flow_status.
+
+Rename a flow or change the channels it supports. The graph is edited with update_flow_graph and the status with update_flow_status.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — |
+| `name` | string | no | length 1–120 |
+| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |

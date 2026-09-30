@@ -13,6 +13,11 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_tags` — Lists the tag definitions of the company.
 - `create_tag` — Creates a tag definition in the company.
 - `list_custom_field_definitions` — Lists the custom field definitions, with key, type and whether they are required.
+- `update_tag` — Renames, recolors or archives a tag.
+- `delete_tag` — Deletes a tag and removes its name from every contact and conversation.
+- `create_custom_field` — Creates a custom field for contacts or conversations.
+- `update_custom_field` — Changes label, type, scope or flags of a custom field.
+- `delete_custom_field` — Deletes a custom field definition; stored values stay on the records.
 
 #### `list_contacts`
 
@@ -209,3 +214,109 @@ List all active custom field definitions for this company
 _No arguments._
 
 - Use the `key`, not the human label, when writing values.
+
+#### `update_tag`
+
+Renames, recolors or archives a tag.
+
+**Scope:** `tags:write`
+
+**When to use.** When the user reorganises tags. Archive instead of delete to keep the name on old records.
+
+Rename, recolor or archive a tag. Renaming rewrites the name on every contact and conversation; flows that use the old name are not rewritten and are counted in the result.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `tagUuid` | uuid | yes | — |
+| `name` | string | no | length 1–40 |
+| `color` | string | no | — |
+| `archived` | boolean | no | — |
+
+**Side effects.**
+- Renaming rewrites the name on every contact and conversation that carries it.
+- Flows that reference the old name are not rewritten; the result says how many (`flowsStillUsingOldName`) — tell the user.
+
+#### `delete_tag`
+
+Deletes a tag and removes its name from every contact and conversation.
+
+**Scope:** `tags:write`
+
+**When to use.** Only when the user explicitly wants the tag gone. Confirm first; archiving with update_tag is reversible.
+
+Delete a tag and remove its name from every contact and conversation. Contacts and conversations stay.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `tagUuid` | uuid | yes | — |
+
+**Side effects.**
+- Irreversible: the name disappears from contacts and conversations.
+
+#### `create_custom_field`
+
+Creates a custom field for contacts or conversations.
+
+**Scope:** `contacts:write`
+
+**When to use.** When the user wants to store a new piece of data (CPF, plan, reason) that flows, the AI agent or the inbox should read.
+
+Create a custom field for contacts or conversations. The key is normalised (lowercase, underscores) and cannot change later.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `key` | string | yes | length 1–60 |
+| `label` | string | yes | length 1–80 |
+| `type` | `text` \| `number` \| `date` | yes | — |
+| `scope` | `contact` \| `conversation` | no | — |
+| `description` | string \| null | no | — |
+| `required` | boolean | no | — |
+| `active` | boolean | no | — |
+| `showToClient` | boolean | no | — |
+
+- The key is normalised to lowercase with underscores and cannot change later. Native tracking keys (utm_*) are refused.
+- The same key can exist once per scope (`contact` or `conversation`).
+
+```json
+{
+  "key": "cpf",
+  "label": "CPF",
+  "type": "text",
+  "scope": "contact"
+}
+```
+
+#### `update_custom_field`
+
+Changes label, type, scope or flags of a custom field.
+
+**Scope:** `contacts:write`
+
+**When to use.** To fix a label, deactivate a field or show it to the customer.
+
+Change label, type, scope or flags of a custom field. Omitted fields keep their value.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `fieldUuid` | uuid | yes | — |
+| `label` | string | no | length 1–80 |
+| `type` | `text` \| `number` \| `date` | no | — |
+| `scope` | `contact` \| `conversation` | no | — |
+| `description` | string \| null | no | — |
+| `required` | boolean | no | — |
+| `active` | boolean | no | — |
+| `showToClient` | boolean | no | — |
+
+#### `delete_custom_field`
+
+Deletes a custom field definition; stored values stay on the records.
+
+**Scope:** `contacts:write`
+
+**When to use.** Only when the user explicitly wants the field gone. Deactivating with update_custom_field is reversible.
+
+Delete a custom field definition. Values already stored on contacts and conversations are kept.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `fieldUuid` | uuid | yes | — |

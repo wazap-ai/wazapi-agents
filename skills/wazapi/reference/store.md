@@ -18,6 +18,9 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `update_store_order_status` — Advances an order along its status machine.
 - `create_store_product` — Creates a product, optionally with variants.
 - `update_store_product` — Updates a product; omitted fields keep their value.
+- `create_store_category` — Creates a storefront category.
+- `update_store_category` — Renames or repositions a storefront category.
+- `delete_store_category` — Deletes a storefront category; its products stay, without a category.
 
 #### `get_catalog_status`
 
@@ -341,3 +344,51 @@ Update an existing store product. Omitted fields keep their current value. When 
 - When `variants` is sent, variants missing from it are deleted.
 
 - Omit `variants` to leave them untouched. To change them, call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.
+
+#### `create_store_category`
+
+Creates a storefront category.
+
+**Scope:** `store:write`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Before filing products under a category that does not exist yet.
+
+Create a storefront category. Existing categories come from get_storefront_summary.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `name` | string | yes | length 1–120 |
+| `position` | integer | no | range 0–10000 |
+
+#### `update_store_category`
+
+Renames or repositions a storefront category.
+
+**Scope:** `store:write`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** To reorganise the storefront menu.
+
+Rename or reposition a storefront category.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `categoryUuid` | uuid | yes | — |
+| `name` | string | no | length 1–120 |
+| `position` | integer | no | range 0–10000 |
+
+#### `delete_store_category`
+
+Deletes a storefront category; its products stay, without a category.
+
+**Scope:** `store:write`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Only when the user explicitly wants the category gone.
+
+Delete a storefront category. Its products stay, without a category.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `categoryUuid` | uuid | yes | — |

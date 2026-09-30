@@ -724,6 +724,144 @@
         "Goes live once indexed: every active AI agent without explicitly linked sources answers customers from ALL sources. The response lists them in `usedByAgents`.",
         "A `url` source is fetched by the server in the background; only public http(s) addresses are accepted."
       ]
+    },
+    {
+      "name": "list_keywords",
+      "category": "flows",
+      "summary": "Lists the keyword triggers and the default flow of each kind.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_keyword",
+      "category": "flows",
+      "summary": "Makes a flow start when an inbound message matches a keyword.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Goes live immediately for every inbound message of the company."
+      ]
+    },
+    {
+      "name": "delete_keyword",
+      "category": "flows",
+      "summary": "Removes a keyword trigger; the flow stays as it is.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "set_default_flow",
+      "category": "flows",
+      "summary": "Chooses the flow for first contact, for unmatched messages or for storefront orders.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Replaces the flow that held the slot before."
+      ]
+    },
+    {
+      "name": "get_flow_errors",
+      "category": "flows",
+      "summary": "Lists a flow's errors from the last 7 days, block by block.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_conversation_note",
+      "category": "conversations",
+      "summary": "Adds an internal note to a conversation, visible only to the team.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Mentioned users are notified."
+      ]
+    },
+    {
+      "name": "set_conversation_tags",
+      "category": "conversations",
+      "summary": "Adds or removes tags on the conversation itself.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_markers",
+      "category": "conversations",
+      "summary": "Lists the authenticated user's personal markers.",
+      "scope": "conversations:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "set_conversation_markers",
+      "category": "conversations",
+      "summary": "Applies or removes your personal markers on a conversation.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_reminders",
+      "category": "conversations",
+      "summary": "Lists your pending reminders on a conversation.",
+      "scope": "conversations:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_reminder",
+      "category": "conversations",
+      "summary": "Reminds you to get back to a conversation at a given time.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "The reminder notifies the authenticated user in the dashboard at that time."
+      ]
+    },
+    {
+      "name": "complete_reminder",
+      "category": "conversations",
+      "summary": "Marks one of your reminders as done.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_crm_opportunity",
+      "category": "crm",
+      "summary": "Edits an opportunity: title, value, due date, notes, contact or assignee.",
+      "scope": "crm:write",
+      "requiresPlan": "crm",
+      "mutates": true,
+      "sideEffects": [
+        "Writes a `crm.opportunity.updated` audit entry."
+      ]
+    },
+    {
+      "name": "sync_whatsapp_templates",
+      "category": "whatsapp",
+      "summary": "Pulls the status and content of every template from Meta.",
+      "scope": "whatsapp:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "A template deleted in the WhatsApp Manager is removed here too, so it can no longer be sent."
+      ]
     }
   ]
 }

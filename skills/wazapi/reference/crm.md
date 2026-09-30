@@ -11,6 +11,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `get_crm_opportunity` — Fetches one opportunity by uuid.
 - `create_crm_opportunity` — Creates an opportunity in a pipeline stage.
 - `move_crm_opportunity` — Moves an opportunity to another stage, including the terminal won and lost stages.
+- `update_crm_opportunity` — Edits an opportunity: title, value, due date, notes, contact or assignee.
 
 #### `list_crm_groups`
 
@@ -156,3 +157,31 @@ Move a CRM opportunity to another stage, including terminal won/lost stages. Sup
 
 - Optimistic locking: `version` must match the current one. If the call fails on version, someone else moved the card — re-read it with `get_crm_opportunity` and decide again. Never retry blindly with a bumped number.
 - The response returns the new `version`, so a follow-up move can use it directly.
+
+#### `update_crm_opportunity`
+
+Edits an opportunity: title, value, due date, notes, contact or assignee.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** When a deal changes value or owner. For a stage change use move_crm_opportunity.
+
+Edit an opportunity: title, value, due date, notes, contact or assignee. To change its stage use move_crm_opportunity.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `opportunityUuid` | uuid | yes | — | — |
+| `title` | string | no | length 1–160 | — |
+| `valueCents` | integer | no | range 0–1000000000000 | — |
+| `dueAt` | string \| null | no | — | — |
+| `notes` | string \| null | no | — | — |
+| `contactUuid` | uuid | no | — | — |
+| `assignedUserUuid` | uuid \| null | no | — | — |
+| `version` | integer | no | — | Current version from get_crm_opportunity; the edit fails if someone changed it |
+
+**Side effects.**
+- Writes a `crm.opportunity.updated` audit entry.
+
+- Pass `version` from get_crm_opportunity: if someone edited the card in between, the call fails instead of overwriting their change. Re-read and decide again.
+- The assignee must be a member of the pipeline group.

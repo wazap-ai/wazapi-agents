@@ -65,13 +65,13 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
 | `contacts:write` | `create_contact`, `update_contact` |
-| `conversations:read` | `list_conversations`, `get_conversation` |
-| `conversations:write` | `update_conversation_status`, `assign_conversation` |
+| `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
+| `conversations:write` | `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
-| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity` |
+| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity` |
 | `flows:execute` | `execute_flow` |
-| `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph` |
-| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status` |
+| `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors` |
+| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `delete_keyword`, `set_default_flow` |
 | `groups:read` | `get_group`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
@@ -88,7 +88,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
 | `whatsapp:read` | `list_channels`, `get_whatsapp_config`, `list_whatsapp_templates` |
-| `whatsapp:write` | `create_whatsapp_template` |
+| `whatsapp:write` | `create_whatsapp_template`, `sync_whatsapp_templates` |
 
 Scopes marked ⚠️ are sensitive: a token with broad access does **not** get them. They must be granted by name.
 
@@ -493,6 +493,132 @@ Assign a conversation to a specific user (agent) or group. Use the UUIDs returne
   "assignedToGroupUuid": "…"
 }
 ```
+
+#### `create_conversation_note`
+
+Adds an internal note to a conversation, visible only to the team.
+
+**Scope:** `conversations:write`
+
+**When to use.** To leave context for the next agent (what was promised, what is missing) without messaging the customer.
+
+Add an internal note to a conversation. It is never sent to the customer; mentioned team members are notified.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `text` | string | yes | length 1–4096 |
+| `mentionedUserUuids` | uuid[] | no | 0–20 items |
+
+**Side effects.**
+- Mentioned users are notified.
+
+- Mentions take user uuids from list_agents.
+
+#### `set_conversation_tags`
+
+Adds or removes tags on the conversation itself.
+
+**Scope:** `conversations:write`
+
+**When to use.** To classify a conversation (topic, outcome). To tag the person across all conversations, use update_contact instead.
+
+Add or remove tags on a conversation (not on the contact). Only registered, active tags can be added; see list_tags.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `add` | string[] | no | 0–100 items |
+| `remove` | string[] | no | 0–100 items |
+
+- Only registered, active tags can be added; create one with create_tag if the user wants a new tag.
+
+#### `list_markers`
+
+Lists the authenticated user's personal markers.
+
+**Scope:** `conversations:read`
+
+**When to use.** Before set_conversation_markers, to get the marker uuids.
+
+List the personal markers of the authenticated user. Markers are private to each person and are managed in the inbox.
+
+_No arguments._
+
+- Markers are private: nobody else sees them, and there is no tool to create one.
+
+#### `set_conversation_markers`
+
+Applies or removes your personal markers on a conversation.
+
+**Scope:** `conversations:write`
+
+**When to use.** When the user asks to flag a conversation for themselves ("follow up", "VIP").
+
+Apply or remove personal markers (uuids from list_markers) on a conversation.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `add` | uuid[] | no | 0–20 items |
+| `remove` | uuid[] | no | 0–20 items |
+
+#### `list_reminders`
+
+Lists your pending reminders on a conversation.
+
+**Scope:** `conversations:read`
+
+**When to use.** Before creating another reminder, to avoid duplicates.
+
+List the pending personal reminders of the authenticated user on a conversation.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+
+#### `create_reminder`
+
+Reminds you to get back to a conversation at a given time.
+
+**Scope:** `conversations:write`
+
+**When to use.** When the user says "remind me to call this lead on Friday".
+
+Remind the authenticated user to get back to a conversation at a given time (ISO 8601, up to one year ahead).
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `remindAt` | string | yes | — |
+| `note` | string | no | length 0–500 |
+
+**Side effects.**
+- The reminder notifies the authenticated user in the dashboard at that time.
+
+- `remindAt` is ISO 8601 with offset, from now up to one year ahead.
+
+```json
+{
+  "conversationUuid": "<conversation uuid>",
+  "remindAt": "2026-10-03T14:00:00-03:00",
+  "note": "Retomar proposta"
+}
+```
+
+#### `complete_reminder`
+
+Marks one of your reminders as done.
+
+**Scope:** `conversations:write`
+
+**When to use.** After the follow-up happened.
+
+Mark one of your reminders as done.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `reminderUuid` | uuid | yes | — |
 
 ### Messaging
 
@@ -1066,6 +1192,96 @@ Start an active WhatsApp flow for a contact immediately, without waiting for a k
 }
 ```
 
+#### `list_keywords`
+
+Lists the keyword triggers and the default flow of each kind.
+
+**Scope:** `flows:read`
+
+**When to use.** Before creating a trigger, and to answer "why does this flow never start?": an active flow with no trigger and no default slot never runs on its own.
+
+List the keyword triggers that start flows (keyword, match type, flow) and the default flows per kind (welcome, default_reply, store_order).
+
+_No arguments._
+
+#### `create_keyword`
+
+Makes a flow start when an inbound message matches a keyword.
+
+**Scope:** `flows:write`
+
+**When to use.** Right after building and activating a flow that customers should reach by typing something ("menu", "boleto").
+
+Make a flow start when an inbound message matches a keyword. Without a trigger or a default flow, an active flow never starts on its own.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `keyword` | string | yes | length 1–120 |
+| `matchType` | `exact` \| `starts_with` \| `contains` | yes | — |
+| `flowUuid` | uuid | yes | — |
+
+**Side effects.**
+- Goes live immediately for every inbound message of the company.
+
+- Match is case-insensitive. `exact` is the safe default; `contains` catches words inside longer messages and can steal traffic from other flows.
+- The same keyword with the same match type cannot exist twice.
+
+```json
+{
+  "keyword": "boleto",
+  "matchType": "exact",
+  "flowUuid": "<flow uuid>"
+}
+```
+
+#### `delete_keyword`
+
+Removes a keyword trigger; the flow stays as it is.
+
+**Scope:** `flows:write`
+
+**When to use.** When a trigger points at the wrong flow or is stealing traffic. Confirm with the user first.
+
+Remove a keyword trigger. The flow itself is not touched.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `keywordUuid` | uuid | yes | — |
+
+#### `set_default_flow`
+
+Chooses the flow for first contact, for unmatched messages or for storefront orders.
+
+**Scope:** `flows:write`
+
+**When to use.** When the user wants a flow to greet every new contact (`welcome`), answer anything no trigger caught (`default_reply`) or confirm store orders (`store_order`).
+
+Choose the flow that runs for a kind of event: welcome (first contact), default_reply (no trigger matched) or store_order (storefront order). Pass flowUuid null to turn the slot off.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `kind` | `welcome` \| `default_reply` \| `store_order` | yes | — |
+| `flowUuid` | uuid \| null | yes | — |
+
+**Side effects.**
+- Replaces the flow that held the slot before.
+
+- `store_order` needs the store permission; the other kinds need keywords.
+
+#### `get_flow_errors`
+
+Lists a flow's errors from the last 7 days, block by block.
+
+**Scope:** `flows:read`
+
+**When to use.** When a customer or the user reports that the bot stopped or answered wrong. Read this before editing the graph.
+
+List the last errors of a flow in the past 7 days (block, node key, message, when): the same list behind the warning icon on the flow card.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — |
+
 ### WhatsApp channel and templates
 
 #### `get_whatsapp_config`
@@ -1180,6 +1396,21 @@ Submit a new message template to Meta for review. Approval is asynchronous: the 
   ]
 }
 ```
+
+#### `sync_whatsapp_templates`
+
+Pulls the status and content of every template from Meta.
+
+**Scope:** `whatsapp:write`
+
+**When to use.** After create_whatsapp_template, to see whether Meta approved it, or when a template was edited in the WhatsApp Manager.
+
+Pull status, category and components of every template from Meta: how a PENDING template becomes APPROVED here without opening the dashboard.
+
+_No arguments._
+
+**Side effects.**
+- A template deleted in the WhatsApp Manager is removed here too, so it can no longer be sent.
 
 ### CRM
 
@@ -1327,6 +1558,34 @@ Move a CRM opportunity to another stage, including terminal won/lost stages. Sup
 
 - Optimistic locking: `version` must match the current one. If the call fails on version, someone else moved the card — re-read it with `get_crm_opportunity` and decide again. Never retry blindly with a bumped number.
 - The response returns the new `version`, so a follow-up move can use it directly.
+
+#### `update_crm_opportunity`
+
+Edits an opportunity: title, value, due date, notes, contact or assignee.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** When a deal changes value or owner. For a stage change use move_crm_opportunity.
+
+Edit an opportunity: title, value, due date, notes, contact or assignee. To change its stage use move_crm_opportunity.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `opportunityUuid` | uuid | yes | — | — |
+| `title` | string | no | length 1–160 | — |
+| `valueCents` | integer | no | range 0–1000000000000 | — |
+| `dueAt` | string \| null | no | — | — |
+| `notes` | string \| null | no | — | — |
+| `contactUuid` | uuid | no | — | — |
+| `assignedUserUuid` | uuid \| null | no | — | — |
+| `version` | integer | no | — | Current version from get_crm_opportunity; the edit fails if someone changed it |
+
+**Side effects.**
+- Writes a `crm.opportunity.updated` audit entry.
+
+- Pass `version` from get_crm_opportunity: if someone edited the card in between, the call fails instead of overwriting their change. Re-read and decide again.
+- The assignee must be a member of the pipeline group.
 
 ### Store
 

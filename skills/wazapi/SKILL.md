@@ -68,13 +68,13 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
 | `contacts:write` | `create_contact`, `update_contact` |
-| `conversations:read` | `list_conversations`, `get_conversation` |
-| `conversations:write` | `update_conversation_status`, `assign_conversation` |
+| `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
+| `conversations:write` | `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
-| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity` |
+| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity` |
 | `flows:execute` | `execute_flow` |
-| `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph` |
-| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status` |
+| `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors` |
+| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `delete_keyword`, `set_default_flow` |
 | `groups:read` | `get_group`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
@@ -91,7 +91,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
 | `whatsapp:read` | `list_channels`, `get_whatsapp_config`, `list_whatsapp_templates` |
-| `whatsapp:write` | `create_whatsapp_template` |
+| `whatsapp:write` | `create_whatsapp_template`, `sync_whatsapp_templates` |
 
 Scopes marked ⚠️ are sensitive: a token with broad access does **not** get them. They must be granted by name.
 
@@ -177,7 +177,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Conversations and messaging** — `reference/conversations.md`
 
-`list_conversations`, `get_conversation`, `update_conversation_status`, `assign_conversation`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`
+`list_conversations`, `get_conversation`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`
 
 **Contacts, tags and custom fields** — `reference/contacts.md`
 
@@ -185,15 +185,15 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Flows** — `reference/flows.md`
 
-`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `execute_flow`
+`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `execute_flow`, `list_keywords`, `create_keyword`, `delete_keyword`, `set_default_flow`, `get_flow_errors`
 
 **WhatsApp channel and templates** — `reference/whatsapp.md`
 
-`get_whatsapp_config`, `configure_whatsapp`, `list_whatsapp_templates`, `create_whatsapp_template`
+`get_whatsapp_config`, `configure_whatsapp`, `list_whatsapp_templates`, `create_whatsapp_template`, `sync_whatsapp_templates`
 
 **CRM** — `reference/crm.md`
 
-`list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity`, `create_crm_opportunity`, `move_crm_opportunity`
+`list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity`, `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`
 
 **Store** — `reference/store.md`
 

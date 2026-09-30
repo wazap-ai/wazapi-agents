@@ -14,6 +14,11 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `validate_flow_graph` — Runs the full graph validation without persisting anything.
 - `update_flow_status` — Switches a flow between draft and active.
 - `execute_flow` — Starts an active flow for one contact right now, without waiting for a keyword.
+- `list_keywords` — Lists the keyword triggers and the default flow of each kind.
+- `create_keyword` — Makes a flow start when an inbound message matches a keyword.
+- `delete_keyword` — Removes a keyword trigger; the flow stays as it is.
+- `set_default_flow` — Chooses the flow for first contact, for unmatched messages or for storefront orders.
+- `get_flow_errors` — Lists a flow's errors from the last 7 days, block by block.
 
 #### `list_flow_block_types`
 
@@ -264,3 +269,93 @@ Start an active WhatsApp flow for a contact immediately, without waiting for a k
   }
 }
 ```
+
+#### `list_keywords`
+
+Lists the keyword triggers and the default flow of each kind.
+
+**Scope:** `flows:read`
+
+**When to use.** Before creating a trigger, and to answer "why does this flow never start?": an active flow with no trigger and no default slot never runs on its own.
+
+List the keyword triggers that start flows (keyword, match type, flow) and the default flows per kind (welcome, default_reply, store_order).
+
+_No arguments._
+
+#### `create_keyword`
+
+Makes a flow start when an inbound message matches a keyword.
+
+**Scope:** `flows:write`
+
+**When to use.** Right after building and activating a flow that customers should reach by typing something ("menu", "boleto").
+
+Make a flow start when an inbound message matches a keyword. Without a trigger or a default flow, an active flow never starts on its own.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `keyword` | string | yes | length 1–120 |
+| `matchType` | `exact` \| `starts_with` \| `contains` | yes | — |
+| `flowUuid` | uuid | yes | — |
+
+**Side effects.**
+- Goes live immediately for every inbound message of the company.
+
+- Match is case-insensitive. `exact` is the safe default; `contains` catches words inside longer messages and can steal traffic from other flows.
+- The same keyword with the same match type cannot exist twice.
+
+```json
+{
+  "keyword": "boleto",
+  "matchType": "exact",
+  "flowUuid": "<flow uuid>"
+}
+```
+
+#### `delete_keyword`
+
+Removes a keyword trigger; the flow stays as it is.
+
+**Scope:** `flows:write`
+
+**When to use.** When a trigger points at the wrong flow or is stealing traffic. Confirm with the user first.
+
+Remove a keyword trigger. The flow itself is not touched.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `keywordUuid` | uuid | yes | — |
+
+#### `set_default_flow`
+
+Chooses the flow for first contact, for unmatched messages or for storefront orders.
+
+**Scope:** `flows:write`
+
+**When to use.** When the user wants a flow to greet every new contact (`welcome`), answer anything no trigger caught (`default_reply`) or confirm store orders (`store_order`).
+
+Choose the flow that runs for a kind of event: welcome (first contact), default_reply (no trigger matched) or store_order (storefront order). Pass flowUuid null to turn the slot off.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `kind` | `welcome` \| `default_reply` \| `store_order` | yes | — |
+| `flowUuid` | uuid \| null | yes | — |
+
+**Side effects.**
+- Replaces the flow that held the slot before.
+
+- `store_order` needs the store permission; the other kinds need keywords.
+
+#### `get_flow_errors`
+
+Lists a flow's errors from the last 7 days, block by block.
+
+**Scope:** `flows:read`
+
+**When to use.** When a customer or the user reports that the bot stopped or answered wrong. Read this before editing the graph.
+
+List the last errors of a flow in the past 7 days (block, node key, message, when): the same list behind the warning icon on the flow card.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — |

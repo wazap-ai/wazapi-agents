@@ -64,14 +64,14 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
-| `contacts:write` | `create_contact`, `update_contact` |
+| `contacts:write` | `create_contact`, `update_contact`, `create_custom_field`, `update_custom_field`, `delete_custom_field` |
 | `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
 | `conversations:write` | `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
-| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity` |
+| `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages`, `delete_crm_stage` |
 | `flows:execute` | `execute_flow` |
-| `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors` |
-| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `delete_keyword`, `set_default_flow` |
+| `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors`, `list_business_schedules` |
+| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `delete_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
 | `groups:read` | `get_group`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
@@ -81,9 +81,9 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `store:coupons` ⚠️ | `save_store_coupon` |
 | `store:discounts` ⚠️ | `save_store_discount_policy` |
 | `store:read` | `get_catalog_status`, `get_storefront_summary`, `list_store_coupons`, `get_store_discount_policy`, `list_store_products`, `get_store_product`, `list_store_orders`, `get_store_order`, `get_store_metrics` |
-| `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product` |
+| `store:write` | `update_store_order_status`, `create_store_product`, `update_store_product`, `create_store_category`, `update_store_category`, `delete_store_category` |
 | `tags:read` | `list_tags` |
-| `tags:write` | `create_tag` |
+| `tags:write` | `create_tag`, `update_tag`, `delete_tag` |
 | `users:read` | `get_agent`, `get_team_configuration_context`, `list_agents` |
 | `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
@@ -940,6 +940,112 @@ _No arguments._
 
 - Use the `key`, not the human label, when writing values.
 
+#### `update_tag`
+
+Renames, recolors or archives a tag.
+
+**Scope:** `tags:write`
+
+**When to use.** When the user reorganises tags. Archive instead of delete to keep the name on old records.
+
+Rename, recolor or archive a tag. Renaming rewrites the name on every contact and conversation; flows that use the old name are not rewritten and are counted in the result.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `tagUuid` | uuid | yes | — |
+| `name` | string | no | length 1–40 |
+| `color` | string | no | — |
+| `archived` | boolean | no | — |
+
+**Side effects.**
+- Renaming rewrites the name on every contact and conversation that carries it.
+- Flows that reference the old name are not rewritten; the result says how many (`flowsStillUsingOldName`) — tell the user.
+
+#### `delete_tag`
+
+Deletes a tag and removes its name from every contact and conversation.
+
+**Scope:** `tags:write`
+
+**When to use.** Only when the user explicitly wants the tag gone. Confirm first; archiving with update_tag is reversible.
+
+Delete a tag and remove its name from every contact and conversation. Contacts and conversations stay.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `tagUuid` | uuid | yes | — |
+
+**Side effects.**
+- Irreversible: the name disappears from contacts and conversations.
+
+#### `create_custom_field`
+
+Creates a custom field for contacts or conversations.
+
+**Scope:** `contacts:write`
+
+**When to use.** When the user wants to store a new piece of data (CPF, plan, reason) that flows, the AI agent or the inbox should read.
+
+Create a custom field for contacts or conversations. The key is normalised (lowercase, underscores) and cannot change later.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `key` | string | yes | length 1–60 |
+| `label` | string | yes | length 1–80 |
+| `type` | `text` \| `number` \| `date` | yes | — |
+| `scope` | `contact` \| `conversation` | no | — |
+| `description` | string \| null | no | — |
+| `required` | boolean | no | — |
+| `active` | boolean | no | — |
+| `showToClient` | boolean | no | — |
+
+- The key is normalised to lowercase with underscores and cannot change later. Native tracking keys (utm_*) are refused.
+- The same key can exist once per scope (`contact` or `conversation`).
+
+```json
+{
+  "key": "cpf",
+  "label": "CPF",
+  "type": "text",
+  "scope": "contact"
+}
+```
+
+#### `update_custom_field`
+
+Changes label, type, scope or flags of a custom field.
+
+**Scope:** `contacts:write`
+
+**When to use.** To fix a label, deactivate a field or show it to the customer.
+
+Change label, type, scope or flags of a custom field. Omitted fields keep their value.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `fieldUuid` | uuid | yes | — |
+| `label` | string | no | length 1–80 |
+| `type` | `text` \| `number` \| `date` | no | — |
+| `scope` | `contact` \| `conversation` | no | — |
+| `description` | string \| null | no | — |
+| `required` | boolean | no | — |
+| `active` | boolean | no | — |
+| `showToClient` | boolean | no | — |
+
+#### `delete_custom_field`
+
+Deletes a custom field definition; stored values stay on the records.
+
+**Scope:** `contacts:write`
+
+**When to use.** Only when the user explicitly wants the field gone. Deactivating with update_custom_field is reversible.
+
+Delete a custom field definition. Values already stored on contacts and conversations are kept.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `fieldUuid` | uuid | yes | — |
+
 ### Flows
 
 #### `list_flow_block_types`
@@ -1282,6 +1388,148 @@ List the last errors of a flow in the past 7 days (block, node key, message, whe
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
 
+#### `list_business_schedules`
+
+Lists the business schedules with weekly hours, exceptions and whether each is open now.
+
+**Scope:** `flows:read`
+
+**When to use.** Before building a business_hours block or answering "are we open on the holiday?".
+
+List the named business schedules with their weekly hours, date exceptions and whether they are open right now.
+
+_No arguments._
+
+#### `create_business_schedule`
+
+Creates a named business schedule.
+
+**Scope:** `flows:write`
+
+**When to use.** When a flow must branch on opening hours and the right schedule does not exist yet.
+
+Create a named business schedule, used by the business_hours flow block and by group auto-close. The first schedule of the company becomes the default.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | yes | length 1–120 | — |
+| `timezone` | string | yes | length 1–64 | IANA time zone, e.g. America/Sao_Paulo |
+| `weekly` | object | yes | — | Opening intervals per weekday (HH:mm); an empty list means closed that day |
+| `exceptions` | object[] | no | 0–100 items | Dates that override the week (closed, or special hours). Omitted on update keeps the current ones. |
+| `useCompanyHolidays` | boolean | no | — | — |
+| `weekly.mon` | object[] | yes | 0–6 items | — |
+| `weekly.tue` | object[] | yes | 0–6 items | — |
+| `weekly.wed` | object[] | yes | 0–6 items | — |
+| `weekly.thu` | object[] | yes | 0–6 items | — |
+| `weekly.fri` | object[] | yes | 0–6 items | — |
+| `weekly.sat` | object[] | yes | 0–6 items | — |
+| `weekly.sun` | object[] | yes | 0–6 items | — |
+| `exceptions[].id` | string | yes | length 1–40 | — |
+| `exceptions[].label` | string | yes | length 1–120 | — |
+| `exceptions[].start` | string | yes | — | — |
+| `exceptions[].end` | string | yes | — | — |
+| `exceptions[].recurring` | boolean | yes | — | — |
+| `exceptions[].closed` | boolean | yes | — | — |
+| `exceptions[].intervals` | object[] | no | 0–6 items | — |
+
+- The first schedule of the company becomes the default, used by group auto-close.
+- Intervals are HH:mm per weekday; an empty list closes the day. Company holidays apply unless `useCompanyHolidays` is false.
+
+```json
+{
+  "name": "Comercial",
+  "timezone": "America/Sao_Paulo",
+  "weekly": {
+    "mon": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "tue": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "wed": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "thu": [
+      {
+        "start": "08:00",
+        "end": "18:00"
+      }
+    ],
+    "fri": [
+      {
+        "start": "08:00",
+        "end": "17:00"
+      }
+    ],
+    "sat": [],
+    "sun": []
+  }
+}
+```
+
+#### `update_business_schedule`
+
+Replaces the hours of a business schedule.
+
+**Scope:** `flows:write`
+
+**When to use.** When opening hours change. Read the current one with list_business_schedules first.
+
+Replace the name, time zone and weekly hours of a schedule. Flows that use it follow the new hours immediately.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `scheduleUuid` | uuid | yes | — | — |
+| `name` | string | yes | length 1–120 | — |
+| `timezone` | string | yes | length 1–64 | IANA time zone, e.g. America/Sao_Paulo |
+| `weekly` | object | yes | — | Opening intervals per weekday (HH:mm); an empty list means closed that day |
+| `exceptions` | object[] | no | 0–100 items | Dates that override the week (closed, or special hours). Omitted on update keeps the current ones. |
+| `useCompanyHolidays` | boolean | no | — | — |
+| `weekly.mon` | object[] | yes | 0–6 items | — |
+| `weekly.tue` | object[] | yes | 0–6 items | — |
+| `weekly.wed` | object[] | yes | 0–6 items | — |
+| `weekly.thu` | object[] | yes | 0–6 items | — |
+| `weekly.fri` | object[] | yes | 0–6 items | — |
+| `weekly.sat` | object[] | yes | 0–6 items | — |
+| `weekly.sun` | object[] | yes | 0–6 items | — |
+| `exceptions[].id` | string | yes | length 1–40 | — |
+| `exceptions[].label` | string | yes | length 1–120 | — |
+| `exceptions[].start` | string | yes | — | — |
+| `exceptions[].end` | string | yes | — | — |
+| `exceptions[].recurring` | boolean | yes | — | — |
+| `exceptions[].closed` | boolean | yes | — | — |
+| `exceptions[].intervals` | object[] | no | 0–6 items | — |
+
+**Side effects.**
+- Every flow and group using the schedule follows the new hours immediately.
+
+- `weekly` is replaced as a whole; omitted `exceptions` keep the current ones.
+
+#### `update_flow`
+
+Renames a flow or changes the channels it supports.
+
+**Scope:** `flows:write`
+
+**When to use.** For metadata only. The graph goes through update_flow_graph and activation through update_flow_status.
+
+Rename a flow or change the channels it supports. The graph is edited with update_flow_graph and the status with update_flow_status.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — |
+| `name` | string | no | length 1–120 |
+| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+
 ### WhatsApp channel and templates
 
 #### `get_whatsapp_config`
@@ -1586,6 +1834,78 @@ Edit an opportunity: title, value, due date, notes, contact or assignee. To chan
 
 - Pass `version` from get_crm_opportunity: if someone edited the card in between, the call fails instead of overwriting their change. Re-read and decide again.
 - The assignee must be a member of the pipeline group.
+
+#### `create_crm_stage`
+
+Adds an open stage to a group pipeline.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** When the sales process gains a step.
+
+Add an open stage to the pipeline of a group, before the won and lost stages. Only the group supervisor or the owner can.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `name` | string | yes | length 1–60 |
+| `color` | string | yes | — |
+
+- Only the group supervisor or the company owner can configure stages.
+
+#### `update_crm_stage`
+
+Renames or recolors a CRM stage.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** To rename a step of the pipeline.
+
+Rename or recolor a CRM stage.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `stageUuid` | uuid | yes | — |
+| `name` | string | no | length 1–60 |
+| `color` | string | no | — |
+
+#### `reorder_crm_stages`
+
+Sets the order of all stages of a group pipeline.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** When the user reorders the pipeline. Read the stage uuids with get_crm_board.
+
+Set the order of every stage of a group pipeline. Pass all stage uuids; won and lost must be the last two.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `stageUuids` | uuid[] | yes | 2–50 items |
+
+- Pass every stage; won and lost must be the last two, in that order.
+
+#### `delete_crm_stage`
+
+Deletes an open CRM stage, moving its opportunities to a replacement.
+
+**Scope:** `crm:write`
+**Plan:** requires a plan with CRM.
+
+**When to use.** Only when the user explicitly wants the step gone. Confirm first.
+
+Delete an open CRM stage. If it holds opportunities, pass replacementStageUuid to move them there first.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `stageUuid` | uuid | yes | — |
+| `replacementStageUuid` | uuid \| null | no | — |
+
+- Won and lost stages cannot be deleted. A stage with opportunities needs `replacementStageUuid`.
 
 ### Store
 
@@ -1911,6 +2231,54 @@ Update an existing store product. Omitted fields keep their current value. When 
 - When `variants` is sent, variants missing from it are deleted.
 
 - Omit `variants` to leave them untouched. To change them, call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.
+
+#### `create_store_category`
+
+Creates a storefront category.
+
+**Scope:** `store:write`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Before filing products under a category that does not exist yet.
+
+Create a storefront category. Existing categories come from get_storefront_summary.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `name` | string | yes | length 1–120 |
+| `position` | integer | no | range 0–10000 |
+
+#### `update_store_category`
+
+Renames or repositions a storefront category.
+
+**Scope:** `store:write`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** To reorganise the storefront menu.
+
+Rename or reposition a storefront category.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `categoryUuid` | uuid | yes | — |
+| `name` | string | no | length 1–120 |
+| `position` | integer | no | range 0–10000 |
+
+#### `delete_store_category`
+
+Deletes a storefront category; its products stay, without a category.
+
+**Scope:** `store:write`
+**Plan:** requires a plan with the storefront.
+
+**When to use.** Only when the user explicitly wants the category gone.
+
+Delete a storefront category. Its products stay, without a category.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `categoryUuid` | uuid | yes | — |
 
 ### Knowledge base
 

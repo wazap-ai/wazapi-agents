@@ -862,6 +862,157 @@
       "sideEffects": [
         "A template deleted in the WhatsApp Manager is removed here too, so it can no longer be sent."
       ]
+    },
+    {
+      "name": "update_tag",
+      "category": "contacts",
+      "summary": "Renames, recolors or archives a tag.",
+      "scope": "tags:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Renaming rewrites the name on every contact and conversation that carries it.",
+        "Flows that reference the old name are not rewritten; the result says how many (`flowsStillUsingOldName`) — tell the user."
+      ]
+    },
+    {
+      "name": "delete_tag",
+      "category": "contacts",
+      "summary": "Deletes a tag and removes its name from every contact and conversation.",
+      "scope": "tags:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Irreversible: the name disappears from contacts and conversations."
+      ]
+    },
+    {
+      "name": "create_custom_field",
+      "category": "contacts",
+      "summary": "Creates a custom field for contacts or conversations.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_custom_field",
+      "category": "contacts",
+      "summary": "Changes label, type, scope or flags of a custom field.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "delete_custom_field",
+      "category": "contacts",
+      "summary": "Deletes a custom field definition; stored values stay on the records.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_business_schedules",
+      "category": "flows",
+      "summary": "Lists the business schedules with weekly hours, exceptions and whether each is open now.",
+      "scope": "flows:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_business_schedule",
+      "category": "flows",
+      "summary": "Creates a named business schedule.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_business_schedule",
+      "category": "flows",
+      "summary": "Replaces the hours of a business schedule.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Every flow and group using the schedule follows the new hours immediately."
+      ]
+    },
+    {
+      "name": "create_crm_stage",
+      "category": "crm",
+      "summary": "Adds an open stage to a group pipeline.",
+      "scope": "crm:write",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_crm_stage",
+      "category": "crm",
+      "summary": "Renames or recolors a CRM stage.",
+      "scope": "crm:write",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "reorder_crm_stages",
+      "category": "crm",
+      "summary": "Sets the order of all stages of a group pipeline.",
+      "scope": "crm:write",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "delete_crm_stage",
+      "category": "crm",
+      "summary": "Deletes an open CRM stage, moving its opportunities to a replacement.",
+      "scope": "crm:write",
+      "requiresPlan": "crm",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_store_category",
+      "category": "store",
+      "summary": "Creates a storefront category.",
+      "scope": "store:write",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_store_category",
+      "category": "store",
+      "summary": "Renames or repositions a storefront category.",
+      "scope": "store:write",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "delete_store_category",
+      "category": "store",
+      "summary": "Deletes a storefront category; its products stay, without a category.",
+      "scope": "store:write",
+      "requiresPlan": "storefront",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_flow",
+      "category": "flows",
+      "summary": "Renames a flow or changes the channels it supports.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
     }
   ]
 }

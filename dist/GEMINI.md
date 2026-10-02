@@ -60,26 +60,30 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `ai_agents:read` | `list_ai_agents`, `get_ai_agent`, `get_ai_agent_configuration_context` |
-| `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent` |
+| `ai_agents:read` | `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
+| `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent`, `test_ai_agent` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
-| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
-| `contacts:write` | `create_contact`, `update_contact`, `create_custom_field`, `update_custom_field` |
+| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_inbox_response_settings`, `get_conversation_panel` |
+| `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
 | `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
-| `conversations:write` | `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
+| `conversations:write` | `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
 | `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
 | `data:delete` ⚠️ | `delete_keyword`, `delete_tag`, `delete_custom_field`, `delete_crm_stage`, `delete_store_category`, `delete_flow`, `delete_contact`, `delete_store_product`, `archive_crm_opportunity`, `delete_whatsapp_template`, `delete_knowledge_source`, `delete_group` |
+| `entries:read` | `get_entry_settings` |
+| `entries:write` ⚠️ | `update_entry_settings` |
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors`, `list_business_schedules` |
 | `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
-| `groups:read` | `get_group`, `list_groups` |
+| `groups:read` | `get_group`, `get_group_distribution_report`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
 | `knowledge:write` ⚠️ | `create_knowledge_source` |
 | `messages:media` ⚠️ | `send_media_message` |
 | `messages:read` | `list_messages` |
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
+| `settings:read` | `get_stale_session_settings` |
+| `settings:write` ⚠️ | `update_stale_session_settings` |
 | `store:coupons` ⚠️ | `save_store_coupon` |
 | `store:discounts` ⚠️ | `save_store_discount_policy` |
 | `store:orders` ⚠️ | `create_store_order` |
@@ -95,7 +99,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 
 Scopes marked ⚠️ are sensitive: a token with broad access does **not** get them. They must be granted by name.
 
-Existing connections keep their current permissions when AI-agent tools become available. A grant containing `mcp` automatically includes `ai_agents:read`; a limited grant needs that read scope explicitly. Creating or editing agents always requires the sensitive `ai_agents:write` scope, even with broad access.
+Existing connections keep their current permissions when AI-agent tools become available. A grant containing `mcp` automatically includes `ai_agents:read`; a limited grant needs that read scope explicitly. Creating, editing or testing agents always requires the sensitive `ai_agents:write` scope, even with broad access.
 
 - **Existing OAuth connection:** the client registration must allow `ai_agents:write`, and a new authorization request must explicitly request it (for example, `mcp ai_agents:write`). Ask the user to approve it on the consent screen. A client registered only for `mcp` must register again with the additional scope before requesting it. Reconnecting with only `mcp`, or refreshing a token, does not grant write access. If the permission is absent from consent, the client must change its registration/request; the user cannot enable an unrequested scope there.
 - **Existing static token:** at Settings → MCP, issue a replacement token with `ai_agents:read` and “Criar e editar agentes de IA” (`ai_agents:write`), then replace the token in the client. After confirming the replacement works, revoke the old token if it is no longer used by any integration.
@@ -124,6 +128,7 @@ A record that does not exist and a record belonging to another company return th
 ### Reply to someone waiting
 
 `list_conversations` with `status: "open"` → `list_messages` to read the thread → draft the reply → **confirm with the user** → `send_text_message`.
+Public API webhooks `conversation.assigned` and `conversation.status_changed` are opt-in in Settings → API. They include previous assignment/status, conversation, integration-specific contact.external_id and actor (user, flow, ai_agent, api, mcp or system). MCP changes identify actor.type=mcp. Unchanged values and rolled-back writes emit nothing; ending an AI session alone is not a conversation status change.
 
 Remember that sending sets the conversation to `pending` and assigns it to you when it has no agent; one that someone else holds stays with them. Do not use it for read-only triage.
 
@@ -203,13 +208,30 @@ _No arguments._
 
 - `status` tells you whether the channel is usable. A channel that is not `connected` will fail on send.
 
+#### `get_group_distribution_report`
+
+Read daily group receipts, presence and distribution queue waits.
+
+**Scope:** `groups:read`
+
+**When to use.** Compare shifts by received conversations rather than current load. Read only; groupUuid is from list_groups; day is YYYY-MM-DD in company timezone.
+
+Read distinct daily receipts by person and origin, current open conversations, first observed online, queue arrivals and delivery waits. Day uses company timezone. Requires groups:read and dashboard.team or dashboard.company. History begins at feature installation.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `day` | string | no | — |
+
+- Requires groups:read and dashboard.team or dashboard.company. Counts once per conversation/person/group/day, using the first origin. Closing or transferring does not erase receipts. History starts at installation. Queue wait metrics use delivery day; arrival counts use arrival day; at most 1000 delivery details, with deliveries_truncated explicit.
+
 #### `get_group`
 
 Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids and phoneNumbers.
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent).
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -234,8 +256,13 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 | `name` | string | yes | length 1–100 |
 | `memberUuids` | uuid[] | no | 0–1000 items |
 | `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
+| `queueWhenUnavailable` | boolean | no | — |
+| `distributionScheduleUuid` | uuid \| null | no | — |
+| `queueBatchPerAgent` | integer \| null | no | — |
 | `autoDistribute` | boolean | no | — |
 | `transferOnInactivity` | boolean | no | — |
+| `waitAlertMinutes` | integer \| null | no | — |
 | `inactivityTransferMinutes` | integer | no | range 1–43200 |
 | `limitConversationsPerUser` | boolean | no | — |
 | `maxConversationsPerUser` | integer | no | range 1–10000 |
@@ -270,8 +297,13 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 | `name` | string | no | length 1–100 |
 | `memberUuids` | uuid[] | no | 0–1000 items |
 | `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
+| `queueWhenUnavailable` | boolean | no | — |
+| `distributionScheduleUuid` | uuid \| null | no | — |
+| `queueBatchPerAgent` | integer \| null | no | — |
 | `autoDistribute` | boolean | no | — |
 | `transferOnInactivity` | boolean | no | — |
+| `waitAlertMinutes` | integer \| null | no | — |
 | `inactivityTransferMinutes` | integer | no | range 1–43200 |
 | `limitConversationsPerUser` | boolean | no | — |
 | `maxConversationsPerUser` | integer | no | range 1–10000 |
@@ -291,6 +323,8 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+- Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries FIFO each minute in distributionScheduleUuid business hours. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
+- waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
 #### `get_agent`
 
@@ -460,6 +494,33 @@ Fetch a single conversation by UUID from the authenticated Wazapi company
 
 - It does not say whether the messaging window is open. Use the contact `lastInteractionAt` as an estimate, and treat the `reply_window_closed` refusal as the real answer.
 - `flowSessionId` being set means an automation is parked on this conversation — possibly the AI agent. Sending free text ends it.
+
+#### `update_conversation_fields`
+
+Updates custom field values in a visible conversation.
+
+**Scope:** `conversations:write`
+
+**When to use.** To record information explicitly supplied or authorized by the user.
+
+Patch custom field values in a visible conversation. Select fields accept a listed value or unambiguous label and store the value. Null clears a value. Unlisted values are refused. Only changed keys are emitted by conversation.fields_changed.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `customFields` | object | yes | — |
+
+- Select accepts an exact value or unambiguous label and persists its value. Invalid values are rejected. Null clears the value. Uses conversations:write and inbox visibility.
+- Only changed keys are included in the public conversation.fields_changed event, with the MCP actor.
+
+```json
+{
+  "conversationUuid": "<conversation uuid>",
+  "customFields": {
+    "turno": "1"
+  }
+}
+```
 
 #### `update_conversation_status`
 
@@ -644,6 +705,110 @@ Mark one of your reminders as done.
 | --- | --- | --- | --- |
 | `reminderUuid` | uuid | yes | — |
 
+#### `recalculate_team_reply`
+
+Preview or recalculate waiting-for-team markers, one company page at a time.
+
+**Scope:** `contacts:write`
+
+**When to use.** After reviewing a switch to team_reply; begin with dryRun=true and review all pages.
+
+Recalculate one page of open/pending conversations in the active company. dryRun is required; true is a read-only preview. Apply requires team_reply. Changes only awaiting_human_since; never resolves, assigns or sends. Follow nextCursor until null. Historical unknowns are preserved and reported. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `dryRun` | boolean | yes | — |
+| `cursor` | uuid | no | — |
+| `limit` | integer | no | range 1–500 |
+
+- Only awaiting_human_since changes. No assignments, statuses, messages, flows or other database fields change. Apply requires team_reply; dry-run is read-only and works before opting in. Follow nextCursor until null. Unknown historical handoffs are preserved and listed, never automatically removed.
+
+```json
+{
+  "dryRun": true,
+  "limit": 100
+}
+```
+
+#### `get_inbox_response_settings`
+
+Read the company unanswered and overdue clock mode.
+
+**Scope:** `contacts:read`
+
+**When to use.** Before explaining or changing which conversations await a human reply.
+
+Read unansweredMode for the active company: last_message (default), human_reply or team_reply. Requires settings.general.
+
+_No arguments._
+
+- Conversation reads expose awaitingHumanSince, the first inbound still awaiting a successful human reply. Consecutive inbounds do not restart the clock.
+
+#### `update_inbox_response_settings`
+
+Opt the company into human-reply unanswered views, or restore last-message behavior.
+
+**Scope:** `contacts:write`
+
+**When to use.** Only when the user asks to change this company setting. Confirm company with get_session_context before writing.
+
+Set company unansweredMode. team_reply counts inbound already assigned to the team and real handoffs with leadExpectsReply=true (default); false excludes timeout/bounce handoffs; node auto excludes AI/interactive timeouts in the same session unless the lead wrote afterwards. Recalculate historical markers explicitly, preview first. human_reply keeps inbound conversations unanswered until a successful human inbox or business-app reply; bot, AI, MCP, API, system templates and notes do not answer. last_message restores the default. Also changes overdue and waiting clocks. Does not change waiting badge visibility. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `unansweredMode` | `last_message` \| `human_reply` \| `team_reply` | yes | — |
+
+- team_reply counts inbound already with a person/group and handoffs expecting a reply; node leadExpectsReply accepts true (default), false or auto. auto excludes AI/interactive timeouts in the same session without a later lead message; legitimate handoffs still mark. false is for timeout/bounce exits. Preview and explicitly recalculate historical rows; unknowns are preserved. Default last_message preserves existing views. human_reply ignores flow, AI, API/MCP automation, notes, system notices and system templates. Human inbox and business_app sends count only when successful. Badge visibility remains separately configured.
+- Switch back to last_message to undo; no flows or permissions change.
+
+```json
+{
+  "unansweredMode": "human_reply"
+}
+```
+
+#### `get_entry_settings`
+
+Read whether the company separates public and private entries.
+
+**Scope:** `entries:read`
+
+**When to use.** Before planning entry-specific flows or changing company entry routing.
+
+Read entrySplit for the active company. none preserves a single conversation per contact/channel.
+
+_No arguments._
+
+- entrySplit defaults to none. Old messages and conversations without metadata read as direct.
+- Flows support per-provider supportedEntries maps; missing or empty lists allow all, but default flows accept comment only when explicitly selected.
+- Agent supportedEntries defaults to direct, ad, story_reply. Comments and mentions require explicit opt-in.
+
+#### `update_entry_settings`
+
+Configure company entrySplit.
+
+**Scope:** `entries:write` — **sensitive, never granted by broad access**
+
+**When to use.** Only after the user explicitly asks to separate or reunify public/private conversations in the verified active company.
+
+Set entrySplit to none or public_private. Changes future inbound routing. Requires explicit entries:write and settings.channels. Never enable without user authorization.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `entrySplit` | `none` \| `public_private` | yes | — |
+
+**Side effects.**
+- public_private routes comment and mention to public conversations and the remaining entries to private conversations. Existing history is never backfilled or moved.
+
+- Requires explicit entries:write and settings.channels.
+- Read get_session_context first. Changing flows, agents and keywords uses their own tools and scopes.
+
+```json
+{
+  "entrySplit": "public_private"
+}
+```
+
 ### Messaging
 
 #### `list_messages`
@@ -674,10 +839,11 @@ Sends a free-text reply inside an existing conversation.
 
 Send a human text reply in an existing WhatsApp, Instagram, or Messenger conversation, respecting the provider messaging window
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `conversationUuid` | uuid | yes | — |
-| `text` | string | yes | length 1–4096 |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `replyToMessageUuid` | uuid | no | — | Quote a WhatsApp message from this conversation. Text and media only; existing permissions and messaging window apply. |
+| `conversationUuid` | uuid | yes | — | — |
+| `text` | string | yes | length 1–4096 | — |
 
 **Side effects.**
 - Sets the conversation status to `pending`.
@@ -686,6 +852,7 @@ Send a human text reply in an existing WhatsApp, Instagram, or Messenger convers
 - Writes a `conversation.reply.sent` audit entry.
 - When the workspace signs agent messages, the customer receives the text prefixed with the token owner's display name. The stored message and `list_messages` keep the text you sent.
 
+- Optional replyToMessageUuid quotes an existing WhatsApp message in the same conversation. Notes, deleted messages, foreign conversations and other providers are rejected. Existing permissions and the 24h window still apply. Templates do not support quotes.
 - Claiming an unassigned conversation is silent and real — do not use this tool for read-only triage.
 - Confirm the text with the user before sending. A sent WhatsApp message cannot be recalled.
 - A refused send comes back as `ok: false` with an `error`, **not** as a tool error. Read `ok` before telling anyone the message went out.
@@ -776,19 +943,22 @@ Sends a file from the company file library in a conversation.
 
 Send a file from the company file library (image, video, audio or document) in a conversation. Audio can go as a WhatsApp voice note. Requires the sensitive messages:media scope.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `conversationUuid` | uuid | yes | — |
-| `fileUuid` | uuid | yes | — |
-| `caption` | string | no | length 0–1024 |
-| `asVoice` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `replyToMessageUuid` | uuid | no | — | Quote a WhatsApp message from this conversation. Text and media only; existing permissions and messaging window apply. |
+| `conversationUuid` | uuid | yes | — | — |
+| `fileUuid` | uuid | yes | — | — |
+| `caption` | string | no | length 0–1024 | — |
+| `asVoice` | boolean | no | — | — |
 
 **Side effects.**
 - The customer receives it immediately; it cannot be recalled.
 - Same conversation effects as send_text_message: status → pending, claimed only when unassigned.
 
+- Optional replyToMessageUuid quotes an existing WhatsApp message in the same conversation. Notes, deleted messages, foreign conversations and other providers are rejected. Existing permissions and the 24h window still apply. Templates do not support quotes.
 - Needs the 24h window open, like any free-form message.
 - `asVoice` sends an audio file as a WhatsApp voice note.
+- Optional caption (up to 1024 characters) is part of the same WhatsApp image/video/document message. Audio has no caption; send text separately after success. Instagram/Messenger send caption as separate text after media succeeds. The inbox preview does not apply to MCP: this tool sends immediately.
 - Requires the sensitive scope `messages:media` and the Files permission. At most 30 sends every 10 minutes per person.
 
 ### Contacts
@@ -1029,6 +1199,63 @@ Delete a tag and remove its name from every contact and conversation. Contacts a
 
 - Requires the sensitive scope `data:delete`, which broad access does not grant.
 
+#### `get_conversation_panel`
+
+Read company cards, native placements, visibility options and warnings.
+
+**Scope:** `contacts:read`
+
+**When to use.** Before changing the panel layout or the company Brazilian ninth-digit lookup option.
+
+Read company phoneEquivalenceBrNinthDigit (default false; Brazilian mobile lookup only), conversation panel cards, placements, detailsReadOnly (default false), contactBlock (show), waitingBadge (unassigned), contactTags and conversationTags (show), and warnings for active contact fields without a section when hidden. Requires settings.general.
+
+_No arguments._
+
+- phoneEquivalenceBrNinthDigit defaults false; enabling it only changes contact lookup, preserving existing contacts and send destinations. detailsReadOnly defaults false; contactBlock, contactTags and conversationTags default show. waitingBadge defaults unassigned and affects only the list badge, never overdue filtering. Hidden contact blocks report active unsectioned fields in warnings. Cards and grants belong to the authenticated company. Unconfigured native items retain their original position.
+
+#### `update_conversation_panel`
+
+Configure card titles, Hugeicons, ordering and native placements.
+
+**Scope:** `contacts:write`
+
+**When to use.** When authorized to change the company conversation panel.
+
+Patch company panel options. phoneEquivalenceBrNinthDigit (default false) enables Brazilian mobile contact lookup with/without the ninth digit; preserves contacts and send destinations, selects the most recent conversation for split pairs. Public API contact resolution and blocking stay unchanged. Supplied arrays replace their lists; omitted arrays and per-item attributes preserve saved values. Native items accept width (full/half) and hideWhenEmpty (false); fieldItems accepts fieldUuid, width and placement (body/header). Omitted contactTags, conversationTags, detailsReadOnly, contactBlock and waitingBadge preserve saved options. Defaults: false, show, unassigned. waitingBadge affects list badges only, not overdue filtering. Empty arrays restore native positions. Does not change contact values or profile grants. Requires settings.general.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `transferTargets` | `members` \| `all` | no | — | Panel transfer targets only: members excludes supervisor-only users but includes supervisors who are also members. Default all; omission preserves. Bulk assignment and automatic distribution are unchanged. |
+| `topCards` | boolean | no | — | Use cards for service and conversation info, only with detailsReadOnly. Default false. |
+| `detailsCrmStage` | `show` \| `hide` | no | — | Hide only the CRM stage in Details, not a placed crmStage item. |
+| `wrapValues` | boolean | no | — | Wrap long values throughout panel cards. Default false. |
+| `fieldItems` | object[] | no | 0–500 items | Per-field card layout. Consecutive half items pair only at card width >=340px; otherwise full. Header placement displays only safe nonempty links. Omission preserves, [] resets. |
+| `contactTags` | `show` \| `hide` | no | — | — |
+| `conversationTags` | `show` \| `hide` | no | — | — |
+| `detailsReadOnly` | boolean | no | — | — |
+| `contactBlock` | `show` \| `hide` | no | — | — |
+| `phoneEquivalenceBrNinthDigit` | boolean | no | — | — |
+| `waitingBadge` | `unassigned` \| `always` | no | — | — |
+| `cards` | object[] | no | 0–40 items | — |
+| `nativeItems` | object[] | no | 0–5 items | — |
+| `fieldItems[].fieldUuid` | uuid | yes | — | — |
+| `fieldItems[].width` | `full` \| `half` | no | — | — |
+| `fieldItems[].placement` | `body` \| `header` | no | — | — |
+| `cards[].key` | string | yes | length 1–80 | — |
+| `cards[].title` | string | yes | length 1–80 | — |
+| `cards[].icon` | `UserIcon` \| `UserLove01Icon` \| `Target01Icon` \| `Megaphone01Icon` \| `BrainIcon` \| `InformationCircleIcon` | yes | — | — |
+| `cards[].order` | integer | yes | range -2147483648–2147483647 | — |
+| `nativeItems[].key` | `name` \| `phone` \| `email` \| `organization` \| `crmStage` | yes | — | — |
+| `nativeItems[].width` | `full` \| `half` | no | — | — |
+| `nativeItems[].hideWhenEmpty` | boolean | no | — | — |
+| `nativeItems[].section` | string | yes | length 1–80 | — |
+| `nativeItems[].position` | integer | yes | range -2147483648–2147483647 | — |
+
+**Side effects.**
+- transferTargets (all/members, default all) limits only the panel transfer menu and unitary assignment to actual group members, including member-supervisors; bulk assignment and automatic distribution stay unchanged. phoneEquivalenceBrNinthDigit (false) enables same-company Brazilian mobile lookup with/without the ninth digit without modifying existing contacts or send destinations. Split pairs select the most recent conversation and are logged; Public API contact resolution and blocking are unchanged. Patches panel options; supplied cards/nativeItems/fieldItems arrays replace their lists, omitted arrays and item attributes are preserved. topCards (false) requires detailsReadOnly. detailsCrmStage (show/hide) affects only Details. wrapValues (false) wraps long values. nativeItems accepts width (full/half) and hideWhenEmpty (false); fieldItems accepts fieldUuid, width and placement (body/header). Consecutive half fields pair at card width >=340px, with one column on narrow/mobile. Header links keep HTTPS validation and hide from the body. Does not grant field editing to access profiles.
+
+- Use readOnly on a custom-field definition to prohibit human panel edits. Automation, API and MCP value writes stay available.
+
 #### `create_custom_field`
 
 Creates a custom field for contacts or conversations.
@@ -1039,19 +1266,36 @@ Creates a custom field for contacts or conversations.
 
 Create a custom field for contacts or conversations. The key is normalised (lowercase, underscores) and cannot change later.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `key` | string | yes | length 1–60 |
-| `label` | string | yes | length 1–80 |
-| `type` | `text` \| `number` \| `date` | yes | — |
-| `scope` | `contact` \| `conversation` | no | — |
-| `description` | string \| null | no | — |
-| `required` | boolean | no | — |
-| `active` | boolean | no | — |
-| `showToClient` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `key` | string | yes | length 1–60 | — |
+| `label` | string | yes | length 1–80 | — |
+| `type` | `text` \| `number` \| `date` \| `select` | yes | — | — |
+| `options` | object[] | no | 0–2000 items | — |
+| `optionsPatch` | object | no | — | — |
+| `scope` | `contact` \| `conversation` | no | — | — |
+| `description` | string \| null | no | — | — |
+| `required` | boolean | no | — | — |
+| `active` | boolean | no | — | — |
+| `showToClient` | boolean | no | — | — |
+| `section` | string \| null | no | — | Context panel block title; null removes the block title. |
+| `position` | integer \| null | no | — | Lower positions appear first; null restores label order. |
+| `multiline` | boolean | no | — | Show text fields in multiple lines. Defaults to false. |
+| `readOnly` | boolean | no | — | Prevents human panel edits, including owners. Flow, AI, public API and MCP writes remain allowed. |
+| `linkTemplate` | string \| null | no | — | HTTPS URL with {value} in path, query or fragment; fixed host. The stored field value is URL encoded. null clears it. Requires settings.general. |
+| `linkLabel` | string \| null | no | — | Link text; absent or null uses the field value. |
+| `hideWhenEqualsNative` | `name` \| `email` \| null | no | — | Hide a field equal to contact name/email, ignoring case, accents and whitespace. null clears; omission preserves. |
+| `hideWhenEmpty` | boolean | no | — | Hide empty fields in the context panel. Defaults to false. |
+| `options[].value` | string | yes | length 1–∞ | — |
+| `options[].label` | string | yes | length 1–∞ | — |
+| `optionsPatch.upsert` | object[] | no | 0–2000 items | — |
+| `optionsPatch.remove` | string[] | no | 0–2000 items | — |
 
 - The key is normalised to lowercase with underscores and cannot change later. Native tracking keys (utm_*) are refused.
+- linkTemplate accepts HTTPS with {value} outside a fixed host. Values are URL encoded; links open in a new tab with linkLabel or the stored value. Only settings.general configures definitions.
 - The same key can exist once per scope (`contact` or `conversation`).
+- hideWhenEqualsNative accepts name/email/null; comparison ignores case, accents and whitespace. section and position mix the field with configured native items in company cards. A new field is not editable by regular access profiles until explicitly granted.
+- readOnly prevents every human panel edit, including owner and Administrator. Flow, AI, API and MCP value writes retain their existing rules.
 
 ```json
 {
@@ -1072,16 +1316,35 @@ Changes label, type, scope or flags of a custom field.
 
 Change label, type, scope or flags of a custom field. Omitted fields keep their value.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `fieldUuid` | uuid | yes | — |
-| `label` | string | no | length 1–80 |
-| `type` | `text` \| `number` \| `date` | no | — |
-| `scope` | `contact` \| `conversation` | no | — |
-| `description` | string \| null | no | — |
-| `required` | boolean | no | — |
-| `active` | boolean | no | — |
-| `showToClient` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `fieldUuid` | uuid | yes | — | — |
+| `label` | string | no | length 1–80 | — |
+| `type` | `text` \| `number` \| `date` \| `select` | no | — | — |
+| `options` | object[] | no | 0–2000 items | — |
+| `optionsPatch` | object | no | — | — |
+| `scope` | `contact` \| `conversation` | no | — | — |
+| `description` | string \| null | no | — | — |
+| `required` | boolean | no | — | — |
+| `active` | boolean | no | — | — |
+| `showToClient` | boolean | no | — | — |
+| `section` | string \| null | no | — | Context panel block title; null removes the block title. |
+| `position` | integer \| null | no | — | Lower positions appear first; null restores label order. |
+| `multiline` | boolean | no | — | Show text fields in multiple lines. Defaults to false. |
+| `readOnly` | boolean | no | — | Prevents human panel edits, including owners. Flow, AI, public API and MCP writes remain allowed. |
+| `linkTemplate` | string \| null | no | — | HTTPS URL with {value} in path, query or fragment; fixed host. The stored field value is URL encoded. null clears it. Requires settings.general. |
+| `linkLabel` | string \| null | no | — | Link text; absent or null uses the field value. |
+| `hideWhenEqualsNative` | `name` \| `email` \| null | no | — | Hide a field equal to contact name/email, ignoring case, accents and whitespace. null clears; omission preserves. |
+| `hideWhenEmpty` | boolean | no | — | Hide empty fields in the context panel. Defaults to false. |
+| `options[].value` | string | yes | length 1–∞ | — |
+| `options[].label` | string | yes | length 1–∞ | — |
+| `optionsPatch.upsert` | object[] | no | 0–2000 items | — |
+| `optionsPatch.remove` | string[] | no | 0–2000 items | — |
+
+- Select fields have options: [{value, label}], up to 2000 unique values. options replaces the entire list; optionsPatch: {upsert: [{value, label}], remove: [value]} edits part. Never send both. Removed stored values stay unchanged.
+- hideWhenEqualsNative accepts name/email/null: hide a field equal to that native contact value ignoring case, accents and whitespace. Omission preserves; null resets. linkTemplate and linkLabel support null to clear either setting. Templates cannot contain credentials or vary the origin.
+- Omitted attributes retain their value. readOnly only restricts human panel writes; setting it false does not grant profile permissions.
+- Card titles, icons and native placements are configured separately with update_conversation_panel.
 
 #### `delete_custom_field`
 
@@ -1233,11 +1496,16 @@ Create a new draft chatbot flow in the authenticated Wazapi company
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 |
+| `supportedEntries` | object | no | — |
 | `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
+| `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
+| `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
 
 **Side effects.**
 - Writes a `flow.created` audit entry.
 
+- supportedEntries is a per-provider map. Empty lists allow all; default comment flows require comment explicitly. WhatsApp/Messenger only accept direct and ad.
 - The flow starts as `draft` and does not run until `update_flow_status` activates it.
 - `supportedProviders` is fixed at creation and constrains which blocks the graph may use.
 
@@ -1260,19 +1528,19 @@ Replaces the entire node and edge graph of a flow.
 
 Replace the full node and edge graph of an existing Wazapi flow after validating block schemas, provider compatibility, and tenant references
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `flowUuid` | uuid | yes | — |
-| `nodes` | object[] | yes | 1–300 items |
-| `edges` | object[] | yes | 0–800 items |
-| `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
-| `nodes[].position` | object | yes | — |
-| `nodes[].data` | object | no | — |
-| `edges[].source` | string | yes | length 1–120 |
-| `edges[].sourceHandle` | string \| null | no | — |
-| `edges[].target` | string | yes | length 1–120 |
-| `edges[].targetHandle` | string \| null | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — | — |
+| `nodes` | object[] | yes | 1–300 items | — |
+| `edges` | object[] | yes | 0–800 items | — |
+| `nodes[].key` | string | yes | length 1–120 | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].position` | object | yes | — | — |
+| `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
+| `edges[].source` | string | yes | length 1–120 | — |
+| `edges[].sourceHandle` | string \| null | no | — | — |
+| `edges[].target` | string | yes | length 1–120 | — |
+| `edges[].targetHandle` | string \| null | no | — | — |
 
 **Side effects.**
 - Replaces the whole graph. Nodes and edges absent from your payload are deleted.
@@ -1280,8 +1548,11 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 
 - This is not a patch. Call `get_flow` first and send the full graph back with your changes applied, or you will silently destroy the rest of the flow.
 - Limits: 1 to 300 nodes, at most 800 edges.
+- For http_request, mappingsOn: "success" saves responseMappings and saveResponseTo only on HTTP 2xx; omitted or "always" keeps mapping error responses too. Failure routing and notices stay unchanged.
+- Each responseMappings item accepts skipEmpty: true to keep the previous variable when sourcePath resolves to null, a missing value or an empty string. The default is false; 0 and false are not empty. Mapping select fields still accepts their labels.
 - Cart nodes have success/failure exits. Checkout mode cart requires pronto, pedido_criado, pago, falha, expirado and cancelado exits. Saving a graph does not create a cart or payment.
 - Node `key` is your own identifier and is what `edges` reference — it is not a uuid.
+- On assign_agent and ai_agent, data.leadExpectsReply accepts true (default), false or "auto". Auto prevents a new team wait after an AI/interactive timeout in the same session without a later lead message; a legitimate AI handoff still marks. Existing legitimate waits are preserved. Timeout provenance does not cross into a new flow session.
 
 #### `validate_flow_graph`
 
@@ -1293,19 +1564,19 @@ Runs the full graph validation without persisting anything.
 
 Validate a candidate node and edge graph for an existing Wazapi flow without persisting any change
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `flowUuid` | uuid | yes | — |
-| `nodes` | object[] | yes | 1–300 items |
-| `edges` | object[] | yes | 0–800 items |
-| `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
-| `nodes[].position` | object | yes | — |
-| `nodes[].data` | object | no | — |
-| `edges[].source` | string | yes | length 1–120 |
-| `edges[].sourceHandle` | string \| null | no | — |
-| `edges[].target` | string | yes | length 1–120 |
-| `edges[].targetHandle` | string \| null | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — | — |
+| `nodes` | object[] | yes | 1–300 items | — |
+| `edges` | object[] | yes | 0–800 items | — |
+| `nodes[].key` | string | yes | length 1–120 | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].position` | object | yes | — | — |
+| `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
+| `edges[].source` | string | yes | length 1–120 | — |
+| `edges[].sourceHandle` | string \| null | no | — | — |
+| `edges[].target` | string | yes | length 1–120 | — |
+| `edges[].targetHandle` | string \| null | no | — | — |
 
 - Accepts exactly the same payload as `update_flow_graph`, so you can validate then send the identical object.
 - Shared cart validation checks UUID references, versions, item operations and checkout mode exclusivity; it never reserves stock or sends messages.
@@ -1330,6 +1601,49 @@ Change a Wazapi flow status between draft and active inside the authenticated co
 - Writes a `flow.status.toggled` audit entry.
 
 - Confirm with the user before activating — this changes what real contacts receive.
+
+#### `get_stale_session_settings`
+
+Reads the stalled bot watchdog options for this company.
+
+**Scope:** `settings:read`
+
+**When to use.** Before proposing or changing watchdog automation.
+
+Read the company watchdog options for sessions waiting for contact input without a block timer.
+
+_No arguments._
+
+- Requires settings.general. Null minutes means disabled.
+
+#### `update_stale_session_settings`
+
+Configures the company watchdog for contact-input sessions without a block timer.
+
+**Scope:** `settings:write` — **sensitive, never granted by broad access**
+
+**When to use.** Only when the company owner explicitly asks to configure this automation.
+
+Configure the company watchdog. Null minutes disables it; enabling can start flows or assign groups on the next minute sweep, including old sessions. Omitted fields are preserved.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `staleSessionMaxAgeHours` | integer | no | min 1 |
+| `staleSessionCloseOld` | boolean | no | — |
+| `staleSessionMinutes` | integer \| null | no | — |
+| `staleSessionAction` | `start_flow` \| `assign_group` \| null | no | — |
+| `staleSessionFlowUuid` | uuid \| null | no | — |
+| `staleSessionGroupUuid` | uuid \| null | no | — |
+| `staleSessionFallbackGroupUuid` | uuid \| null | no | — |
+
+**Side effects.**
+- Enabling it can start flows and transfer existing conversations on the next minute sweep.
+
+- Sensitive settings:write scope and settings.general are required; broad mcp is insufficient.
+- Read the settings and discover active flow/group UUIDs first. Show the proposed settings and obtain approval before enabling.
+- Null minutes disables it. Omitted fields remain unchanged. No company-specific flow or UUID is built into the watchdog.
+- staleSessionMaxAgeHours defaults to 24 and uses the last contact message. Older sessions are marked evaluated and skipped. staleSessionCloseOld defaults to false; when true it ends only the old flow session with one internal note, without sending a message or changing conversation status, group or assignee. No inbound message means unknown age: skip, never silently close.
+- Closed messaging window: fallback group, or one logged block per waiting state. Block timers take priority.
 
 #### `execute_flow`
 
@@ -1399,11 +1713,13 @@ Make a flow start when an inbound message matches a keyword. Without a trigger o
 | --- | --- | --- | --- |
 | `keyword` | string | yes | length 1–120 |
 | `matchType` | `exact` \| `starts_with` \| `contains` | yes | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
 | `flowUuid` | uuid | yes | — |
 
 **Side effects.**
 - Goes live immediately for every inbound message of the company.
 
+- supportedEntries is an optional entry-kind list; empty means all. The target flow must also allow the entry.
 - Match is case-insensitive. `exact` is the safe default; `contains` catches words inside longer messages and can steal traffic from other flows.
 - The same keyword with the same match type cannot exist twice.
 
@@ -1593,7 +1909,7 @@ Replace the name, time zone and weekly hours of a schedule. Flows that use it fo
 
 #### `update_flow`
 
-Renames a flow or changes the channels it supports.
+Renames a flow or changes the channels and entries it supports.
 
 **Scope:** `flows:write`
 
@@ -1605,7 +1921,13 @@ Rename a flow or change the channels it supports. The graph is edited with updat
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
 | `name` | string | no | length 1–120 |
+| `supportedEntries` | object | no | — |
 | `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
+| `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
+| `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
+
+- supportedEntries replaces the per-provider map. Empty lists allow all; default comments require explicit selection. Changing this filter also restricts subsequent inbound resumes.
 
 #### `delete_flow`
 
@@ -2600,6 +2922,24 @@ _No arguments._
 
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
+#### `get_ai_agent_usage`
+
+Get AI agent usage and cost
+
+**Scope:** `ai_agents:read`
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Read tokens and estimated USD cost by AI agent and company-local day, without an AI call.
+
+Read AI usage and estimated USD cost per agent and company-local day. Cache counters cover classified turns only; older turns have unknown cache use. No AI call is made.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `agentUuid` | uuid | no | — |
+| `days` | integer | no | range 1–90 |
+
+- Requires ai_agents:read and settings.general. days is 1–90 (default 7), including today. Cache buckets describe classified turns only; old/provider-unknown rows remain unclassified. costBasis is catalog_estimate, never the provider invoice. Transport failures may have unobservable provider spend.
+
 #### `get_ai_agent`
 
 Get AI agent
@@ -2667,6 +3007,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
 | `handoffUserUuid` | uuid \| null | no | — | — |
@@ -2679,10 +3020,41 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
+
+#### `test_ai_agent`
+
+Test AI agent
+
+**Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Preview one paid AI turn without saving instructions, links or conversation data. Works for active and inactive agents.
+
+Run one paid, simulated AI turn for an active or inactive agent. No conversation, message, field, CRM, cart or order is changed. Optional instructions, knowledge sources and clock apply only to this call. Requires explicit ai_agents:write and settings.general. Uses company BYOK, budget and a separate 10/min company limit; usage and metadata-only audit are recorded.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `agentUuid` | uuid | yes | — | — |
+| `messages` | object[] | yes | 1–40 items | — |
+| `contactName` | string | no | length 1–120 | — |
+| `instructionsOverride` | string | no | length 1–12000 | — |
+| `knowledgeSourceUuidsOverride` | uuid[] | no | 0–200 items | Omitted uses agent links. An explicit empty list disables retrieval for this test. |
+| `nowOverride` | string | no | — | ISO 8601 with Z or an explicit UTC offset. Changes only the model context clock. |
+| `messages[].role` | `user` \| `assistant` | yes | — | — |
+| `messages[].content` | string | yes | length 1–4000 | — |
+
+**Side effects.**
+- Calls company BYOK and consumes budget. Records cost and metadata-only audit; 10 tests/minute per company (or lower plan cap), fail closed if limiter is unavailable. No conversation, message, CRM, field, cart, order, payment or notification is created.
+
+- Requires explicit ai_agents:write and settings.general. Same company for agent and all override sources.
+- messages uses role and content and ends in a user message. nowOverride requires ISO 8601 with timezone and only changes the model context, never budgets, audits or rate limits.
+- Omitted sources use the agent links; an empty override disables retrieval. Historical clock does not rewind knowledge sources or reproduce CRM/P2 fields.
+- Actions and toolTrace are simulated proposals, never proof of a sent message or executed action.
 
 #### `update_ai_agent`
 
@@ -2720,6 +3092,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
 | `handoffUserUuid` | uuid \| null | no | — | — |
@@ -2732,6 +3105,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.

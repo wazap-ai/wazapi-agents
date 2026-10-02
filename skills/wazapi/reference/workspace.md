@@ -6,6 +6,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 - `get_session_context` — Identifies who you are acting as and which companies this connection covers.
 - `list_channels` — Lists the WhatsApp, Instagram and Messenger channels connected to the company.
+- `get_group_distribution_report` — Read daily group receipts, presence and distribution queue waits.
 - `get_group` — Read group configuration and membership.
 - `create_group` — Create a support group and its CRM pipeline.
 - `update_group` — Patch a support group, its settings and its membership.
@@ -47,13 +48,30 @@ _No arguments._
 
 - `status` tells you whether the channel is usable. A channel that is not `connected` will fail on send.
 
+#### `get_group_distribution_report`
+
+Read daily group receipts, presence and distribution queue waits.
+
+**Scope:** `groups:read`
+
+**When to use.** Compare shifts by received conversations rather than current load. Read only; groupUuid is from list_groups; day is YYYY-MM-DD in company timezone.
+
+Read distinct daily receipts by person and origin, current open conversations, first observed online, queue arrivals and delivery waits. Day uses company timezone. Requires groups:read and dashboard.team or dashboard.company. History begins at feature installation.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `day` | string | no | — |
+
+- Requires groups:read and dashboard.team or dashboard.company. Counts once per conversation/person/group/day, using the first origin. Closing or transferring does not erase receipts. History starts at installation. Queue wait metrics use delivery day; arrival counts use arrival day; at most 1000 delivery details, with deliveries_truncated explicit.
+
 #### `get_group`
 
 Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids and phoneNumbers.
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent).
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -78,8 +96,13 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 | `name` | string | yes | length 1–100 |
 | `memberUuids` | uuid[] | no | 0–1000 items |
 | `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
+| `queueWhenUnavailable` | boolean | no | — |
+| `distributionScheduleUuid` | uuid \| null | no | — |
+| `queueBatchPerAgent` | integer \| null | no | — |
 | `autoDistribute` | boolean | no | — |
 | `transferOnInactivity` | boolean | no | — |
+| `waitAlertMinutes` | integer \| null | no | — |
 | `inactivityTransferMinutes` | integer | no | range 1–43200 |
 | `limitConversationsPerUser` | boolean | no | — |
 | `maxConversationsPerUser` | integer | no | range 1–10000 |
@@ -114,8 +137,13 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 | `name` | string | no | length 1–100 |
 | `memberUuids` | uuid[] | no | 0–1000 items |
 | `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
+| `queueWhenUnavailable` | boolean | no | — |
+| `distributionScheduleUuid` | uuid \| null | no | — |
+| `queueBatchPerAgent` | integer \| null | no | — |
 | `autoDistribute` | boolean | no | — |
 | `transferOnInactivity` | boolean | no | — |
+| `waitAlertMinutes` | integer \| null | no | — |
 | `inactivityTransferMinutes` | integer | no | range 1–43200 |
 | `limitConversationsPerUser` | boolean | no | — |
 | `maxConversationsPerUser` | integer | no | range 1–10000 |
@@ -135,6 +163,8 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+- Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries FIFO each minute in distributionScheduleUuid business hours. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
+- waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
 #### `get_agent`
 

@@ -5,9 +5,11 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 ## Contents
 
 - `list_ai_agents` — List AI agents
+- `get_ai_agent_usage` — Get AI agent usage and cost
 - `get_ai_agent` — Get AI agent
 - `get_ai_agent_configuration_context` — Get AI agent configuration context
 - `create_ai_agent` — Create AI agent
+- `test_ai_agent` — Test AI agent
 - `update_ai_agent` — Update AI agent
 
 #### `list_ai_agents`
@@ -24,6 +26,24 @@ List AI agents, their status and linked flows in the authenticated company. Huma
 _No arguments._
 
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
+
+#### `get_ai_agent_usage`
+
+Get AI agent usage and cost
+
+**Scope:** `ai_agents:read`
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Read tokens and estimated USD cost by AI agent and company-local day, without an AI call.
+
+Read AI usage and estimated USD cost per agent and company-local day. Cache counters cover classified turns only; older turns have unknown cache use. No AI call is made.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `agentUuid` | uuid | no | — |
+| `days` | integer | no | range 1–90 |
+
+- Requires ai_agents:read and settings.general. days is 1–90 (default 7), including today. Cache buckets describe classified turns only; old/provider-unknown rows remain unclassified. costBasis is catalog_estimate, never the provider invoice. Transport failures may have unobservable provider spend.
 
 #### `get_ai_agent`
 
@@ -92,6 +112,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
 | `handoffUserUuid` | uuid \| null | no | — | — |
@@ -104,10 +125,41 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
+
+#### `test_ai_agent`
+
+Test AI agent
+
+**Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Preview one paid AI turn without saving instructions, links or conversation data. Works for active and inactive agents.
+
+Run one paid, simulated AI turn for an active or inactive agent. No conversation, message, field, CRM, cart or order is changed. Optional instructions, knowledge sources and clock apply only to this call. Requires explicit ai_agents:write and settings.general. Uses company BYOK, budget and a separate 10/min company limit; usage and metadata-only audit are recorded.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `agentUuid` | uuid | yes | — | — |
+| `messages` | object[] | yes | 1–40 items | — |
+| `contactName` | string | no | length 1–120 | — |
+| `instructionsOverride` | string | no | length 1–12000 | — |
+| `knowledgeSourceUuidsOverride` | uuid[] | no | 0–200 items | Omitted uses agent links. An explicit empty list disables retrieval for this test. |
+| `nowOverride` | string | no | — | ISO 8601 with Z or an explicit UTC offset. Changes only the model context clock. |
+| `messages[].role` | `user` \| `assistant` | yes | — | — |
+| `messages[].content` | string | yes | length 1–4000 | — |
+
+**Side effects.**
+- Calls company BYOK and consumes budget. Records cost and metadata-only audit; 10 tests/minute per company (or lower plan cap), fail closed if limiter is unavailable. No conversation, message, CRM, field, cart, order, payment or notification is created.
+
+- Requires explicit ai_agents:write and settings.general. Same company for agent and all override sources.
+- messages uses role and content and ends in a user message. nowOverride requires ISO 8601 with timezone and only changes the model context, never budgets, audits or rate limits.
+- Omitted sources use the agent links; an empty override disables retrieval. Historical clock does not rewind knowledge sources or reproduce CRM/P2 fields.
+- Actions and toolTrace are simulated proposals, never proof of a sent message or executed action.
 
 #### `update_ai_agent`
 
@@ -145,6 +197,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
 | `handoffUserUuid` | uuid \| null | no | — | — |
@@ -157,6 +210,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.

@@ -6,6 +6,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 - `list_conversations` — Lists conversations, filterable by status and by a contact search.
 - `get_conversation` — Fetches one conversation with contact, assignee and channel.
+- `update_conversation_fields` — Updates custom field values in a visible conversation.
 - `update_conversation_status` — Moves a conversation between open, pending and resolved.
 - `assign_conversation` — Assigns a conversation to an agent, a group, or neither.
 - `create_conversation_note` — Adds an internal note to a conversation, visible only to the team.
@@ -15,6 +16,11 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_reminders` — Lists your pending reminders on a conversation.
 - `create_reminder` — Reminds you to get back to a conversation at a given time.
 - `complete_reminder` — Marks one of your reminders as done.
+- `recalculate_team_reply` — Preview or recalculate waiting-for-team markers, one company page at a time.
+- `get_inbox_response_settings` — Read the company unanswered and overdue clock mode.
+- `update_inbox_response_settings` — Opt the company into human-reply unanswered views, or restore last-message behavior.
+- `get_entry_settings` — Read whether the company separates public and private entries.
+- `update_entry_settings` — Configure company entrySplit.
 - `list_messages` — Returns the most recent messages of a conversation, oldest first.
 - `send_text_message` — Sends a free-text reply inside an existing conversation.
 - `send_product_message` — Sends buyable product card(s) from the Meta catalog in a WhatsApp conversation.
@@ -57,6 +63,33 @@ Fetch a single conversation by UUID from the authenticated Wazapi company
 
 - It does not say whether the messaging window is open. Use the contact `lastInteractionAt` as an estimate, and treat the `reply_window_closed` refusal as the real answer.
 - `flowSessionId` being set means an automation is parked on this conversation — possibly the AI agent. Sending free text ends it.
+
+#### `update_conversation_fields`
+
+Updates custom field values in a visible conversation.
+
+**Scope:** `conversations:write`
+
+**When to use.** To record information explicitly supplied or authorized by the user.
+
+Patch custom field values in a visible conversation. Select fields accept a listed value or unambiguous label and store the value. Null clears a value. Unlisted values are refused. Only changed keys are emitted by conversation.fields_changed.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `conversationUuid` | uuid | yes | — |
+| `customFields` | object | yes | — |
+
+- Select accepts an exact value or unambiguous label and persists its value. Invalid values are rejected. Null clears the value. Uses conversations:write and inbox visibility.
+- Only changed keys are included in the public conversation.fields_changed event, with the MCP actor.
+
+```json
+{
+  "conversationUuid": "<conversation uuid>",
+  "customFields": {
+    "turno": "1"
+  }
+}
+```
 
 #### `update_conversation_status`
 
@@ -241,6 +274,110 @@ Mark one of your reminders as done.
 | --- | --- | --- | --- |
 | `reminderUuid` | uuid | yes | — |
 
+#### `recalculate_team_reply`
+
+Preview or recalculate waiting-for-team markers, one company page at a time.
+
+**Scope:** `contacts:write`
+
+**When to use.** After reviewing a switch to team_reply; begin with dryRun=true and review all pages.
+
+Recalculate one page of open/pending conversations in the active company. dryRun is required; true is a read-only preview. Apply requires team_reply. Changes only awaiting_human_since; never resolves, assigns or sends. Follow nextCursor until null. Historical unknowns are preserved and reported. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `dryRun` | boolean | yes | — |
+| `cursor` | uuid | no | — |
+| `limit` | integer | no | range 1–500 |
+
+- Only awaiting_human_since changes. No assignments, statuses, messages, flows or other database fields change. Apply requires team_reply; dry-run is read-only and works before opting in. Follow nextCursor until null. Unknown historical handoffs are preserved and listed, never automatically removed.
+
+```json
+{
+  "dryRun": true,
+  "limit": 100
+}
+```
+
+#### `get_inbox_response_settings`
+
+Read the company unanswered and overdue clock mode.
+
+**Scope:** `contacts:read`
+
+**When to use.** Before explaining or changing which conversations await a human reply.
+
+Read unansweredMode for the active company: last_message (default), human_reply or team_reply. Requires settings.general.
+
+_No arguments._
+
+- Conversation reads expose awaitingHumanSince, the first inbound still awaiting a successful human reply. Consecutive inbounds do not restart the clock.
+
+#### `update_inbox_response_settings`
+
+Opt the company into human-reply unanswered views, or restore last-message behavior.
+
+**Scope:** `contacts:write`
+
+**When to use.** Only when the user asks to change this company setting. Confirm company with get_session_context before writing.
+
+Set company unansweredMode. team_reply counts inbound already assigned to the team and real handoffs with leadExpectsReply=true (default); false excludes timeout/bounce handoffs; node auto excludes AI/interactive timeouts in the same session unless the lead wrote afterwards. Recalculate historical markers explicitly, preview first. human_reply keeps inbound conversations unanswered until a successful human inbox or business-app reply; bot, AI, MCP, API, system templates and notes do not answer. last_message restores the default. Also changes overdue and waiting clocks. Does not change waiting badge visibility. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `unansweredMode` | `last_message` \| `human_reply` \| `team_reply` | yes | — |
+
+- team_reply counts inbound already with a person/group and handoffs expecting a reply; node leadExpectsReply accepts true (default), false or auto. auto excludes AI/interactive timeouts in the same session without a later lead message; legitimate handoffs still mark. false is for timeout/bounce exits. Preview and explicitly recalculate historical rows; unknowns are preserved. Default last_message preserves existing views. human_reply ignores flow, AI, API/MCP automation, notes, system notices and system templates. Human inbox and business_app sends count only when successful. Badge visibility remains separately configured.
+- Switch back to last_message to undo; no flows or permissions change.
+
+```json
+{
+  "unansweredMode": "human_reply"
+}
+```
+
+#### `get_entry_settings`
+
+Read whether the company separates public and private entries.
+
+**Scope:** `entries:read`
+
+**When to use.** Before planning entry-specific flows or changing company entry routing.
+
+Read entrySplit for the active company. none preserves a single conversation per contact/channel.
+
+_No arguments._
+
+- entrySplit defaults to none. Old messages and conversations without metadata read as direct.
+- Flows support per-provider supportedEntries maps; missing or empty lists allow all, but default flows accept comment only when explicitly selected.
+- Agent supportedEntries defaults to direct, ad, story_reply. Comments and mentions require explicit opt-in.
+
+#### `update_entry_settings`
+
+Configure company entrySplit.
+
+**Scope:** `entries:write` — **sensitive, never granted by broad access**
+
+**When to use.** Only after the user explicitly asks to separate or reunify public/private conversations in the verified active company.
+
+Set entrySplit to none or public_private. Changes future inbound routing. Requires explicit entries:write and settings.channels. Never enable without user authorization.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `entrySplit` | `none` \| `public_private` | yes | — |
+
+**Side effects.**
+- public_private routes comment and mention to public conversations and the remaining entries to private conversations. Existing history is never backfilled or moved.
+
+- Requires explicit entries:write and settings.channels.
+- Read get_session_context first. Changing flows, agents and keywords uses their own tools and scopes.
+
+```json
+{
+  "entrySplit": "public_private"
+}
+```
+
 #### `list_messages`
 
 Returns the most recent messages of a conversation, oldest first.
@@ -269,10 +406,11 @@ Sends a free-text reply inside an existing conversation.
 
 Send a human text reply in an existing WhatsApp, Instagram, or Messenger conversation, respecting the provider messaging window
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `conversationUuid` | uuid | yes | — |
-| `text` | string | yes | length 1–4096 |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `replyToMessageUuid` | uuid | no | — | Quote a WhatsApp message from this conversation. Text and media only; existing permissions and messaging window apply. |
+| `conversationUuid` | uuid | yes | — | — |
+| `text` | string | yes | length 1–4096 | — |
 
 **Side effects.**
 - Sets the conversation status to `pending`.
@@ -281,6 +419,7 @@ Send a human text reply in an existing WhatsApp, Instagram, or Messenger convers
 - Writes a `conversation.reply.sent` audit entry.
 - When the workspace signs agent messages, the customer receives the text prefixed with the token owner's display name. The stored message and `list_messages` keep the text you sent.
 
+- Optional replyToMessageUuid quotes an existing WhatsApp message in the same conversation. Notes, deleted messages, foreign conversations and other providers are rejected. Existing permissions and the 24h window still apply. Templates do not support quotes.
 - Claiming an unassigned conversation is silent and real — do not use this tool for read-only triage.
 - Confirm the text with the user before sending. A sent WhatsApp message cannot be recalled.
 - A refused send comes back as `ok: false` with an `error`, **not** as a tool error. Read `ok` before telling anyone the message went out.
@@ -371,17 +510,20 @@ Sends a file from the company file library in a conversation.
 
 Send a file from the company file library (image, video, audio or document) in a conversation. Audio can go as a WhatsApp voice note. Requires the sensitive messages:media scope.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `conversationUuid` | uuid | yes | — |
-| `fileUuid` | uuid | yes | — |
-| `caption` | string | no | length 0–1024 |
-| `asVoice` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `replyToMessageUuid` | uuid | no | — | Quote a WhatsApp message from this conversation. Text and media only; existing permissions and messaging window apply. |
+| `conversationUuid` | uuid | yes | — | — |
+| `fileUuid` | uuid | yes | — | — |
+| `caption` | string | no | length 0–1024 | — |
+| `asVoice` | boolean | no | — | — |
 
 **Side effects.**
 - The customer receives it immediately; it cannot be recalled.
 - Same conversation effects as send_text_message: status → pending, claimed only when unassigned.
 
+- Optional replyToMessageUuid quotes an existing WhatsApp message in the same conversation. Notes, deleted messages, foreign conversations and other providers are rejected. Existing permissions and the 24h window still apply. Templates do not support quotes.
 - Needs the 24h window open, like any free-form message.
 - `asVoice` sends an audio file as a WhatsApp voice note.
+- Optional caption (up to 1024 characters) is part of the same WhatsApp image/video/document message. Audio has no caption; send text separately after success. Instagram/Messenger send caption as separate text after media succeeds. The inbox preview does not apply to MCP: this tool sends immediately.
 - Requires the sensitive scope `messages:media` and the Files permission. At most 30 sends every 10 minutes per person.

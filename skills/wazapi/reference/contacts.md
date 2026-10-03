@@ -15,6 +15,8 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_custom_field_definitions` — Lists the custom field definitions, with key, type and whether they are required.
 - `update_tag` — Renames, recolors or archives a tag.
 - `delete_tag` — Deletes a tag and removes its name from every contact and conversation.
+- `get_conversation_panel` — Read company cards, native placements, visibility options and warnings.
+- `update_conversation_panel` — Configure card titles, Hugeicons, ordering and native placements.
 - `create_custom_field` — Creates a custom field for contacts or conversations.
 - `update_custom_field` — Changes label, type, scope or flags of a custom field.
 - `delete_custom_field` — Deletes a custom field definition; stored values stay on the records.
@@ -256,6 +258,63 @@ Delete a tag and remove its name from every contact and conversation. Contacts a
 
 - Requires the sensitive scope `data:delete`, which broad access does not grant.
 
+#### `get_conversation_panel`
+
+Read company cards, native placements, visibility options and warnings.
+
+**Scope:** `contacts:read`
+
+**When to use.** Before changing the panel layout or the company Brazilian ninth-digit lookup option.
+
+Read company phoneEquivalenceBrNinthDigit (default false; Brazilian mobile lookup only), conversation panel cards, placements, detailsReadOnly (default false), contactBlock (show), waitingBadge (unassigned), contactTags and conversationTags (show), and warnings for active contact fields without a section when hidden. Requires settings.general.
+
+_No arguments._
+
+- phoneEquivalenceBrNinthDigit defaults false; enabling it only changes contact lookup, preserving existing contacts and send destinations. detailsReadOnly defaults false; contactBlock, contactTags and conversationTags default show. waitingBadge defaults unassigned and affects only the list badge, never overdue filtering. Hidden contact blocks report active unsectioned fields in warnings. Cards and grants belong to the authenticated company. Unconfigured native items retain their original position.
+
+#### `update_conversation_panel`
+
+Configure card titles, Hugeicons, ordering and native placements.
+
+**Scope:** `contacts:write`
+
+**When to use.** When authorized to change the company conversation panel.
+
+Patch company panel options. phoneEquivalenceBrNinthDigit (default false) enables Brazilian mobile contact lookup with/without the ninth digit; preserves contacts and send destinations, selects the most recent conversation for split pairs. Public API contact resolution and blocking stay unchanged. Supplied arrays replace their lists; omitted arrays and per-item attributes preserve saved values. Native items accept width (full/half) and hideWhenEmpty (false); fieldItems accepts fieldUuid, width and placement (body/header). Omitted contactTags, conversationTags, detailsReadOnly, contactBlock and waitingBadge preserve saved options. Defaults: false, show, unassigned. waitingBadge affects list badges only, not overdue filtering. Empty arrays restore native positions. Does not change contact values or profile grants. Requires settings.general.
+
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `transferTargets` | `members` \| `all` | no | — | Panel transfer targets only: members excludes supervisor-only users but includes supervisors who are also members. Default all; omission preserves. Bulk assignment and automatic distribution are unchanged. |
+| `topCards` | boolean | no | — | Use cards for service and conversation info, only with detailsReadOnly. Default false. |
+| `detailsCrmStage` | `show` \| `hide` | no | — | Hide only the CRM stage in Details, not a placed crmStage item. |
+| `wrapValues` | boolean | no | — | Wrap long values throughout panel cards. Default false. |
+| `fieldItems` | object[] | no | 0–500 items | Per-field card layout. Consecutive half items pair only at card width >=340px; otherwise full. Header placement displays only safe nonempty links. Omission preserves, [] resets. |
+| `contactTags` | `show` \| `hide` | no | — | — |
+| `conversationTags` | `show` \| `hide` | no | — | — |
+| `detailsReadOnly` | boolean | no | — | — |
+| `contactBlock` | `show` \| `hide` | no | — | — |
+| `phoneEquivalenceBrNinthDigit` | boolean | no | — | — |
+| `waitingBadge` | `unassigned` \| `always` | no | — | — |
+| `cards` | object[] | no | 0–40 items | — |
+| `nativeItems` | object[] | no | 0–5 items | — |
+| `fieldItems[].fieldUuid` | uuid | yes | — | — |
+| `fieldItems[].width` | `full` \| `half` | no | — | — |
+| `fieldItems[].placement` | `body` \| `header` | no | — | — |
+| `cards[].key` | string | yes | length 1–80 | — |
+| `cards[].title` | string | yes | length 1–80 | — |
+| `cards[].icon` | `UserIcon` \| `UserLove01Icon` \| `Target01Icon` \| `Megaphone01Icon` \| `BrainIcon` \| `InformationCircleIcon` | yes | — | — |
+| `cards[].order` | integer | yes | range -2147483648–2147483647 | — |
+| `nativeItems[].key` | `name` \| `phone` \| `email` \| `organization` \| `crmStage` | yes | — | — |
+| `nativeItems[].width` | `full` \| `half` | no | — | — |
+| `nativeItems[].hideWhenEmpty` | boolean | no | — | — |
+| `nativeItems[].section` | string | yes | length 1–80 | — |
+| `nativeItems[].position` | integer | yes | range -2147483648–2147483647 | — |
+
+**Side effects.**
+- transferTargets (all/members, default all) limits only the panel transfer menu and unitary assignment to actual group members, including member-supervisors; bulk assignment and automatic distribution stay unchanged. phoneEquivalenceBrNinthDigit (false) enables same-company Brazilian mobile lookup with/without the ninth digit without modifying existing contacts or send destinations. Split pairs select the most recent conversation and are logged; Public API contact resolution and blocking are unchanged. Patches panel options; supplied cards/nativeItems/fieldItems arrays replace their lists, omitted arrays and item attributes are preserved. topCards (false) requires detailsReadOnly. detailsCrmStage (show/hide) affects only Details. wrapValues (false) wraps long values. nativeItems accepts width (full/half) and hideWhenEmpty (false); fieldItems accepts fieldUuid, width and placement (body/header). Consecutive half fields pair at card width >=340px, with one column on narrow/mobile. Header links keep HTTPS validation and hide from the body. Does not grant field editing to access profiles.
+
+- Use readOnly on a custom-field definition to prohibit human panel edits. Automation, API and MCP value writes stay available.
+
 #### `create_custom_field`
 
 Creates a custom field for contacts or conversations.
@@ -266,19 +325,36 @@ Creates a custom field for contacts or conversations.
 
 Create a custom field for contacts or conversations. The key is normalised (lowercase, underscores) and cannot change later.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `key` | string | yes | length 1–60 |
-| `label` | string | yes | length 1–80 |
-| `type` | `text` \| `number` \| `date` | yes | — |
-| `scope` | `contact` \| `conversation` | no | — |
-| `description` | string \| null | no | — |
-| `required` | boolean | no | — |
-| `active` | boolean | no | — |
-| `showToClient` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `key` | string | yes | length 1–60 | — |
+| `label` | string | yes | length 1–80 | — |
+| `type` | `text` \| `number` \| `date` \| `select` | yes | — | — |
+| `options` | object[] | no | 0–2000 items | — |
+| `optionsPatch` | object | no | — | — |
+| `scope` | `contact` \| `conversation` | no | — | — |
+| `description` | string \| null | no | — | — |
+| `required` | boolean | no | — | — |
+| `active` | boolean | no | — | — |
+| `showToClient` | boolean | no | — | — |
+| `section` | string \| null | no | — | Context panel block title; null removes the block title. |
+| `position` | integer \| null | no | — | Lower positions appear first; null restores label order. |
+| `multiline` | boolean | no | — | Show text fields in multiple lines. Defaults to false. |
+| `readOnly` | boolean | no | — | Prevents human panel edits, including owners. Flow, AI, public API and MCP writes remain allowed. |
+| `linkTemplate` | string \| null | no | — | HTTPS URL with {value} in path, query or fragment; fixed host. The stored field value is URL encoded. null clears it. Requires settings.general. |
+| `linkLabel` | string \| null | no | — | Link text; absent or null uses the field value. |
+| `hideWhenEqualsNative` | `name` \| `email` \| null | no | — | Hide a field equal to contact name/email, ignoring case, accents and whitespace. null clears; omission preserves. |
+| `hideWhenEmpty` | boolean | no | — | Hide empty fields in the context panel. Defaults to false. |
+| `options[].value` | string | yes | length 1–∞ | — |
+| `options[].label` | string | yes | length 1–∞ | — |
+| `optionsPatch.upsert` | object[] | no | 0–2000 items | — |
+| `optionsPatch.remove` | string[] | no | 0–2000 items | — |
 
 - The key is normalised to lowercase with underscores and cannot change later. Native tracking keys (utm_*) are refused.
+- linkTemplate accepts HTTPS with {value} outside a fixed host. Values are URL encoded; links open in a new tab with linkLabel or the stored value. Only settings.general configures definitions.
 - The same key can exist once per scope (`contact` or `conversation`).
+- hideWhenEqualsNative accepts name/email/null; comparison ignores case, accents and whitespace. section and position mix the field with configured native items in company cards. A new field is not editable by regular access profiles until explicitly granted.
+- readOnly prevents every human panel edit, including owner and Administrator. Flow, AI, API and MCP value writes retain their existing rules.
 
 ```json
 {
@@ -299,16 +375,35 @@ Changes label, type, scope or flags of a custom field.
 
 Change label, type, scope or flags of a custom field. Omitted fields keep their value.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `fieldUuid` | uuid | yes | — |
-| `label` | string | no | length 1–80 |
-| `type` | `text` \| `number` \| `date` | no | — |
-| `scope` | `contact` \| `conversation` | no | — |
-| `description` | string \| null | no | — |
-| `required` | boolean | no | — |
-| `active` | boolean | no | — |
-| `showToClient` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `fieldUuid` | uuid | yes | — | — |
+| `label` | string | no | length 1–80 | — |
+| `type` | `text` \| `number` \| `date` \| `select` | no | — | — |
+| `options` | object[] | no | 0–2000 items | — |
+| `optionsPatch` | object | no | — | — |
+| `scope` | `contact` \| `conversation` | no | — | — |
+| `description` | string \| null | no | — | — |
+| `required` | boolean | no | — | — |
+| `active` | boolean | no | — | — |
+| `showToClient` | boolean | no | — | — |
+| `section` | string \| null | no | — | Context panel block title; null removes the block title. |
+| `position` | integer \| null | no | — | Lower positions appear first; null restores label order. |
+| `multiline` | boolean | no | — | Show text fields in multiple lines. Defaults to false. |
+| `readOnly` | boolean | no | — | Prevents human panel edits, including owners. Flow, AI, public API and MCP writes remain allowed. |
+| `linkTemplate` | string \| null | no | — | HTTPS URL with {value} in path, query or fragment; fixed host. The stored field value is URL encoded. null clears it. Requires settings.general. |
+| `linkLabel` | string \| null | no | — | Link text; absent or null uses the field value. |
+| `hideWhenEqualsNative` | `name` \| `email` \| null | no | — | Hide a field equal to contact name/email, ignoring case, accents and whitespace. null clears; omission preserves. |
+| `hideWhenEmpty` | boolean | no | — | Hide empty fields in the context panel. Defaults to false. |
+| `options[].value` | string | yes | length 1–∞ | — |
+| `options[].label` | string | yes | length 1–∞ | — |
+| `optionsPatch.upsert` | object[] | no | 0–2000 items | — |
+| `optionsPatch.remove` | string[] | no | 0–2000 items | — |
+
+- Select fields have options: [{value, label}], up to 2000 unique values. options replaces the entire list; optionsPatch: {upsert: [{value, label}], remove: [value]} edits part. Never send both. Removed stored values stay unchanged.
+- hideWhenEqualsNative accepts name/email/null: hide a field equal to that native contact value ignoring case, accents and whitespace. Omission preserves; null resets. linkTemplate and linkLabel support null to clear either setting. Templates cannot contain credentials or vary the origin.
+- Omitted attributes retain their value. readOnly only restricts human panel writes; setting it false does not grant profile permissions.
+- Card titles, icons and native placements are configured separately with update_conversation_panel.
 
 #### `delete_custom_field`
 

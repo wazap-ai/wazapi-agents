@@ -63,11 +63,11 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `ai_agents:read` | `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
-| `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent`, `test_ai_agent` |
+| `ai_agents:read` | `get_ai_summary_settings`, `get_ai_summary_costs`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
+| `ai_agents:write` ⚠️ | `update_ai_summary_settings`, `create_ai_agent`, `update_ai_agent`, `test_ai_agent` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
-| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_inbox_response_settings`, `get_conversation_panel` |
-| `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
+| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
+| `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
 | `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
 | `conversations:write` | `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
@@ -81,7 +81,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `groups:read` | `get_group`, `get_group_distribution_report`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
-| `knowledge:write` ⚠️ | `create_knowledge_source` |
+| `knowledge:write` ⚠️ | `create_knowledge_source`, `update_knowledge_source`, `reindex_knowledge_source` |
 | `messages:media` ⚠️ | `send_media_message` |
 | `messages:read` | `list_messages` |
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
@@ -185,7 +185,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Conversations and messaging** — `reference/conversations.md`
 
-`list_conversations`, `get_conversation`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `recalculate_team_reply`, `get_inbox_response_settings`, `update_inbox_response_settings`, `get_entry_settings`, `update_entry_settings`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
+`list_conversations`, `get_conversation`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `recalculate_team_reply`, `get_ownerless_fallback`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `get_inbox_response_settings`, `update_inbox_response_settings`, `get_entry_settings`, `update_entry_settings`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
 
 **Contacts, tags and custom fields** — `reference/contacts.md`
 
@@ -209,8 +209,8 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **AI agents** — `reference/ai-agents.md`
 
-`list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `test_ai_agent`, `update_ai_agent`
+`list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `test_ai_agent`, `update_ai_agent`, `get_ai_summary_settings`, `get_ai_summary_costs`, `update_ai_summary_settings`
 
 **Knowledge base** — `reference/knowledge.md`
 
-`list_knowledge_sources`, `search_knowledge`, `create_knowledge_source`, `delete_knowledge_source`
+`list_knowledge_sources`, `search_knowledge`, `create_knowledge_source`, `update_knowledge_source`, `reindex_knowledge_source`, `delete_knowledge_source`

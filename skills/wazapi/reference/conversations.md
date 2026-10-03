@@ -17,6 +17,9 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `create_reminder` — Reminds you to get back to a conversation at a given time.
 - `complete_reminder` — Marks one of your reminders as done.
 - `recalculate_team_reply` — Preview or recalculate waiting-for-team markers, one company page at a time.
+- `get_ownerless_fallback` — Read ownerless fallback destinations and warnings.
+- `update_ownerless_fallback` — Configure automatic group routing for ownerless conversations.
+- `apply_ownerless_fallback` — Preview or explicitly apply fallback to current ownerless stock.
 - `get_inbox_response_settings` — Read the company unanswered and overdue clock mode.
 - `update_inbox_response_settings` — Opt the company into human-reply unanswered views, or restore last-message behavior.
 - `get_entry_settings` — Read whether the company separates public and private entries.
@@ -299,6 +302,74 @@ Recalculate one page of open/pending conversations in the active company. dryRun
 }
 ```
 
+#### `get_ownerless_fallback`
+
+Read ownerless fallback destinations and warnings.
+
+**Scope:** `contacts:read`
+
+**When to use.** Before explaining or configuring automatic fallback for the verified company.
+
+Read the default and channel-specific destination groups, active groups and inactive-group warnings in the selected company. Requires settings.general.
+
+_No arguments._
+
+- Null default and no channel overrides means disabled. Inactive destinations warn and never receive assignments.
+
+#### `update_ownerless_fallback`
+
+Configure automatic group routing for ownerless conversations.
+
+**Scope:** `contacts:write`
+
+**When to use.** Only when the user explicitly asks to configure this company feature; verify get_session_context first.
+
+Patch the company default group and optional whatsapp/instagram/messenger overrides. UUIDs must identify active groups in this company. Omitted fields preserve saved values; null disables the default or clears an override. Automatically routes only open/pending ownerless conversations with an actual inbound and no active flow, after flow termination or inbound routing. Uses normal group distribution, one internal note and system webhooks; no lead message. Does not scan historical stock. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `defaultGroupUuid` | uuid \| null | no | — |
+| `channels` | object | no | — |
+| `channels.whatsapp` | uuid \| null | no | — |
+| `channels.instagram` | uuid \| null | no | — |
+| `channels.messenger` | uuid \| null | no | — |
+
+**Side effects.**
+- After any flow termination or completed inbound routing, eligible conversations enter the normal group queue/distribution with an internal note and system webhooks. No outbound message is sent.
+
+- Actual inbound required; resolved, already assigned and active-session conversations are excluded. Channel override wins over default; null removes it. Omission preserves. No periodic or historical scan.
+
+```json
+{
+  "defaultGroupUuid": "00000000-0000-4000-8000-000000000001"
+}
+```
+
+#### `apply_ownerless_fallback`
+
+Preview or explicitly apply fallback to current ownerless stock.
+
+**Scope:** `contacts:write`
+
+**When to use.** Preview after reviewing configuration. Use dryRun=false only after the user confirms assigning this stock in the verified company.
+
+Preview the selected company stock by default (dryRun=true): count and list open/pending conversations without group or user, with an actual inbound and no active flow. dryRun=false explicitly assigns eligible rows through normal group distribution with ownerless_fallback history, system webhooks and one internal note, never a lead message. Conditions are checked again under the conversation lock. Read settings and preview before confirming apply. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `dryRun` | boolean | no | — |
+
+**Side effects.**
+- dryRun=false assigns eligible conversations with one internal system note through normal distribution, including balanced_daily; no message goes to the person.
+
+- dryRun defaults true. Preview is read-only. Concurrent triggers recheck eligibility under the assignment lock.
+
+```json
+{
+  "dryRun": true
+}
+```
+
 #### `get_inbox_response_settings`
 
 Read the company unanswered and overdue clock mode.
@@ -307,10 +378,11 @@ Read the company unanswered and overdue clock mode.
 
 **When to use.** Before explaining or changing which conversations await a human reply.
 
-Read unansweredMode for the active company: last_message (default), human_reply or team_reply. Requires settings.general.
+Read overdueMinutes (nullable company default; groups override it) and unansweredMode for the active company: last_message (default), human_reply or team_reply. Requires settings.general.
 
 _No arguments._
 
+- overdueMinutes is the nullable company default (1–10080 minutes); null disables it. Group wait_alert_minutes overrides enabled inactivity transfer, which overrides the company default. Overdue stays inside Unanswered and shares its clock in every mode.
 - Conversation reads expose awaitingHumanSince, the first inbound still awaiting a successful human reply. Consecutive inbounds do not restart the clock.
 
 #### `update_inbox_response_settings`
@@ -321,13 +393,15 @@ Opt the company into human-reply unanswered views, or restore last-message behav
 
 **When to use.** Only when the user asks to change this company setting. Confirm company with get_session_context before writing.
 
-Set company unansweredMode. team_reply counts inbound already assigned to the team and real handoffs with leadExpectsReply=true (default); false excludes timeout/bounce handoffs; node auto excludes AI/interactive timeouts in the same session unless the lead wrote afterwards. Recalculate historical markers explicitly, preview first. human_reply keeps inbound conversations unanswered until a successful human inbox or business-app reply; bot, AI, MCP, API, system templates and notes do not answer. last_message restores the default. Also changes overdue and waiting clocks. Does not change waiting badge visibility. Requires settings.general.
+Set company overdueMinutes (null disables; omission preserves; groups override) and unansweredMode. Overdue is a subset of unanswered and uses its clock. team_reply counts inbound already assigned to the team and real handoffs with leadExpectsReply=true (default); false excludes timeout/bounce handoffs; node auto excludes AI/interactive timeouts in the same session unless the lead wrote afterwards. Recalculate historical markers explicitly, preview first. human_reply keeps inbound conversations unanswered until a successful human inbox or business-app reply; bot, AI, MCP, API, system templates and notes do not answer. last_message restores the default. Also changes overdue and waiting clocks. Does not change waiting badge visibility. Requires settings.general.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `unansweredMode` | `last_message` \| `human_reply` \| `team_reply` | yes | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `unansweredMode` | `last_message` \| `human_reply` \| `team_reply` | yes | — | — |
+| `overdueMinutes` | integer \| null | no | — | Company default overdue threshold in minutes. Null disables it; omission preserves it. Group wait alert, then enabled inactivity transfer override this fallback. Overdue remains part of unanswered. |
 
 - team_reply counts inbound already with a person/group and handoffs expecting a reply; node leadExpectsReply accepts true (default), false or auto. auto excludes AI/interactive timeouts in the same session without a later lead message; legitimate handoffs still mark. false is for timeout/bounce exits. Preview and explicitly recalculate historical rows; unknowns are preserved. Default last_message preserves existing views. human_reply ignores flow, AI, API/MCP automation, notes, system notices and system templates. Human inbox and business_app sends count only when successful. Badge visibility remains separately configured.
+- overdueMinutes: null disables the company fallback; omission preserves it. The setting does not alter assignment, transfer schedules or the Unanswered count. Group limits take precedence; overdue rows appear first in Unanswered.
 - Switch back to last_message to undo; no flows or permissions change.
 
 ```json

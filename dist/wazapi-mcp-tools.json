@@ -789,6 +789,28 @@
       ]
     },
     {
+      "name": "update_knowledge_source",
+      "category": "knowledge",
+      "summary": "Updates URL authentication and refresh configuration.",
+      "scope": "knowledge:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Changing authentication or enabling refresh queues a reread for ready/failed sources. Active agents may use the updated content."
+      ]
+    },
+    {
+      "name": "reindex_knowledge_source",
+      "category": "knowledge",
+      "summary": "Queues a forced reread of one URL source.",
+      "scope": "knowledge:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Fetches the URL and can spend embeddings, even when the document has not changed."
+      ]
+    },
+    {
       "name": "list_keywords",
       "category": "flows",
       "summary": "Lists the keyword triggers and the default flow of each kind.",
@@ -957,6 +979,37 @@
       "requiresPlan": null,
       "mutates": false,
       "sideEffects": []
+    },
+    {
+      "name": "get_ownerless_fallback",
+      "category": "conversations",
+      "summary": "Read ownerless fallback destinations and warnings.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_ownerless_fallback",
+      "category": "conversations",
+      "summary": "Configure automatic group routing for ownerless conversations.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "After any flow termination or completed inbound routing, eligible conversations enter the normal group queue/distribution with an internal note and system webhooks. No outbound message is sent."
+      ]
+    },
+    {
+      "name": "apply_ownerless_fallback",
+      "category": "conversations",
+      "summary": "Preview or explicitly apply fallback to current ownerless stock.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "dryRun=false assigns eligible conversations with one internal system note through normal distribution, including balanced_daily; no message goes to the person."
+      ]
     },
     {
       "name": "get_inbox_response_settings",
@@ -1218,6 +1271,35 @@
       "sideEffects": [
         "Reserves stock and runs the store automation, which messages the buyer.",
         "Prices always come from the catalog; they cannot be overridden."
+      ]
+    },
+    {
+      "name": "get_ai_summary_settings",
+      "category": "ai_agents",
+      "summary": "Read automatic internal summary settings.",
+      "scope": "ai_agents:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_ai_summary_costs",
+      "category": "ai_agents",
+      "summary": "Read daily costs and per-call usage for automatic summaries.",
+      "scope": "ai_agents:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_ai_summary_settings",
+      "category": "ai_agents",
+      "summary": "Configure automatic internal conversation summaries.",
+      "scope": "ai_agents:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Enabling permits paid model calls, internal notes and conversation.ai_summary webhooks on future activity. No customer message is sent."
       ]
     },
     {

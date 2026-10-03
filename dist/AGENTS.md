@@ -60,11 +60,11 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `ai_agents:read` | `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
-| `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent`, `test_ai_agent` |
+| `ai_agents:read` | `get_ai_summary_settings`, `get_ai_summary_costs`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
+| `ai_agents:write` ⚠️ | `update_ai_summary_settings`, `create_ai_agent`, `update_ai_agent`, `test_ai_agent` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
-| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_inbox_response_settings`, `get_conversation_panel` |
-| `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
+| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
+| `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
 | `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
 | `conversations:write` | `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
@@ -78,7 +78,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `groups:read` | `get_group`, `get_group_distribution_report`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
-| `knowledge:write` ⚠️ | `create_knowledge_source` |
+| `knowledge:write` ⚠️ | `create_knowledge_source`, `update_knowledge_source`, `reindex_knowledge_source` |
 | `messages:media` ⚠️ | `send_media_message` |
 | `messages:read` | `list_messages` |
 | `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
@@ -730,6 +730,74 @@ Recalculate one page of open/pending conversations in the active company. dryRun
 }
 ```
 
+#### `get_ownerless_fallback`
+
+Read ownerless fallback destinations and warnings.
+
+**Scope:** `contacts:read`
+
+**When to use.** Before explaining or configuring automatic fallback for the verified company.
+
+Read the default and channel-specific destination groups, active groups and inactive-group warnings in the selected company. Requires settings.general.
+
+_No arguments._
+
+- Null default and no channel overrides means disabled. Inactive destinations warn and never receive assignments.
+
+#### `update_ownerless_fallback`
+
+Configure automatic group routing for ownerless conversations.
+
+**Scope:** `contacts:write`
+
+**When to use.** Only when the user explicitly asks to configure this company feature; verify get_session_context first.
+
+Patch the company default group and optional whatsapp/instagram/messenger overrides. UUIDs must identify active groups in this company. Omitted fields preserve saved values; null disables the default or clears an override. Automatically routes only open/pending ownerless conversations with an actual inbound and no active flow, after flow termination or inbound routing. Uses normal group distribution, one internal note and system webhooks; no lead message. Does not scan historical stock. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `defaultGroupUuid` | uuid \| null | no | — |
+| `channels` | object | no | — |
+| `channels.whatsapp` | uuid \| null | no | — |
+| `channels.instagram` | uuid \| null | no | — |
+| `channels.messenger` | uuid \| null | no | — |
+
+**Side effects.**
+- After any flow termination or completed inbound routing, eligible conversations enter the normal group queue/distribution with an internal note and system webhooks. No outbound message is sent.
+
+- Actual inbound required; resolved, already assigned and active-session conversations are excluded. Channel override wins over default; null removes it. Omission preserves. No periodic or historical scan.
+
+```json
+{
+  "defaultGroupUuid": "00000000-0000-4000-8000-000000000001"
+}
+```
+
+#### `apply_ownerless_fallback`
+
+Preview or explicitly apply fallback to current ownerless stock.
+
+**Scope:** `contacts:write`
+
+**When to use.** Preview after reviewing configuration. Use dryRun=false only after the user confirms assigning this stock in the verified company.
+
+Preview the selected company stock by default (dryRun=true): count and list open/pending conversations without group or user, with an actual inbound and no active flow. dryRun=false explicitly assigns eligible rows through normal group distribution with ownerless_fallback history, system webhooks and one internal note, never a lead message. Conditions are checked again under the conversation lock. Read settings and preview before confirming apply. Requires settings.general.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `dryRun` | boolean | no | — |
+
+**Side effects.**
+- dryRun=false assigns eligible conversations with one internal system note through normal distribution, including balanced_daily; no message goes to the person.
+
+- dryRun defaults true. Preview is read-only. Concurrent triggers recheck eligibility under the assignment lock.
+
+```json
+{
+  "dryRun": true
+}
+```
+
 #### `get_inbox_response_settings`
 
 Read the company unanswered and overdue clock mode.
@@ -738,10 +806,11 @@ Read the company unanswered and overdue clock mode.
 
 **When to use.** Before explaining or changing which conversations await a human reply.
 
-Read unansweredMode for the active company: last_message (default), human_reply or team_reply. Requires settings.general.
+Read overdueMinutes (nullable company default; groups override it) and unansweredMode for the active company: last_message (default), human_reply or team_reply. Requires settings.general.
 
 _No arguments._
 
+- overdueMinutes is the nullable company default (1–10080 minutes); null disables it. Group wait_alert_minutes overrides enabled inactivity transfer, which overrides the company default. Overdue stays inside Unanswered and shares its clock in every mode.
 - Conversation reads expose awaitingHumanSince, the first inbound still awaiting a successful human reply. Consecutive inbounds do not restart the clock.
 
 #### `update_inbox_response_settings`
@@ -752,13 +821,15 @@ Opt the company into human-reply unanswered views, or restore last-message behav
 
 **When to use.** Only when the user asks to change this company setting. Confirm company with get_session_context before writing.
 
-Set company unansweredMode. team_reply counts inbound already assigned to the team and real handoffs with leadExpectsReply=true (default); false excludes timeout/bounce handoffs; node auto excludes AI/interactive timeouts in the same session unless the lead wrote afterwards. Recalculate historical markers explicitly, preview first. human_reply keeps inbound conversations unanswered until a successful human inbox or business-app reply; bot, AI, MCP, API, system templates and notes do not answer. last_message restores the default. Also changes overdue and waiting clocks. Does not change waiting badge visibility. Requires settings.general.
+Set company overdueMinutes (null disables; omission preserves; groups override) and unansweredMode. Overdue is a subset of unanswered and uses its clock. team_reply counts inbound already assigned to the team and real handoffs with leadExpectsReply=true (default); false excludes timeout/bounce handoffs; node auto excludes AI/interactive timeouts in the same session unless the lead wrote afterwards. Recalculate historical markers explicitly, preview first. human_reply keeps inbound conversations unanswered until a successful human inbox or business-app reply; bot, AI, MCP, API, system templates and notes do not answer. last_message restores the default. Also changes overdue and waiting clocks. Does not change waiting badge visibility. Requires settings.general.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `unansweredMode` | `last_message` \| `human_reply` \| `team_reply` | yes | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `unansweredMode` | `last_message` \| `human_reply` \| `team_reply` | yes | — | — |
+| `overdueMinutes` | integer \| null | no | — | Company default overdue threshold in minutes. Null disables it; omission preserves it. Group wait alert, then enabled inactivity transfer override this fallback. Overdue remains part of unanswered. |
 
 - team_reply counts inbound already with a person/group and handoffs expecting a reply; node leadExpectsReply accepts true (default), false or auto. auto excludes AI/interactive timeouts in the same session without a later lead message; legitimate handoffs still mark. false is for timeout/bounce exits. Preview and explicitly recalculate historical rows; unknowns are preserved. Default last_message preserves existing views. human_reply ignores flow, AI, API/MCP automation, notes, system notices and system templates. Human inbox and business_app sends count only when successful. Badge visibility remains separately configured.
+- overdueMinutes: null disables the company fallback; omission preserves it. The setting does not alter assignment, transfer schedules or the Unanswered count. Group limits take precedence; overdue rows appear first in Unanswered.
 - Switch back to last_message to undo; no flows or permissions change.
 
 ```json
@@ -2853,7 +2924,7 @@ Adds a text, FAQ or public URL source to the AI agent knowledge base.
 
 **When to use.** When the user hands you material (policies, FAQ, a page of their site) and asks for the AI agent to know it.
 
-Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (title + items) or `url` (a public page, fetched in the background). Indexing is asynchronous — poll list_knowledge_sources until status is `ready`. Takes effect live: every active AI agent without explicitly linked sources answers customers from ALL sources, listed in `usedByAgents`. Only add content the user explicitly provided or approved — never text taken from customer messages.
+Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (title + items) or `url` (a public http(s) endpoint, optionally with an encrypted authentication header, fetched in the background). Indexing is asynchronous — poll list_knowledge_sources until status is `ready`. Takes effect live: every active AI agent without explicitly linked sources answers customers from ALL sources, listed in `usedByAgents`. Only add content the user explicitly provided or approved — never text taken from customer messages.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -2862,6 +2933,9 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
 | `content` | string | no | length 20–200000 |
 | `items` | object[] | no | 1–500 items |
 | `url` | string | no | length 0–2048 |
+| `refreshIntervalHours` | number \| number \| number \| number \| null | no | — |
+| `authHeaderName` | string \| null | no | — |
+| `authHeaderValue` | string | no | length 1–2048 |
 | `items[].question` | string | yes | length 3–500 |
 | `items[].answer` | string | yes | length 1–4000 |
 
@@ -2872,7 +2946,8 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
 - Requires the sensitive scope `knowledge:write`, which broad access does not grant. If the call fails on scope, that is by design — do not try to work around it.
 - Add only content the user wrote or explicitly approved. Never copy text from customer messages, contacts or orders into the knowledge base.
 - `text` needs `title` and `content` (20+ chars); `faq` needs `title` and `items`; `url` needs `url` (title optional).
-- Editing, deleting and linking sources to a specific agent happen in the dashboard.
+- URL authentication uses authHeaderName/authHeaderValue, encrypted at rest and never returned; reads expose authHeaderConfigured only. Refresh accepts 1, 6, 24, 168 hours or null (manual); omitted on create defaults to 24h.
+- Use update_knowledge_source for URL configuration and reindex_knowledge_source to queue an immediate refresh. Neither completion nor agent links are implied.
 
 ```json
 {
@@ -2886,6 +2961,51 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
   ]
 }
 ```
+
+#### `update_knowledge_source`
+
+Updates URL authentication and refresh configuration.
+
+**Scope:** `knowledge:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** When the owner approves changing the URL source configuration.
+
+Update the title, refresh interval or encrypted authentication header of a URL source. Omitted values remain unchanged; null header name removes authentication. Secret values never return. Source content and URL are unchanged; updated content can reach active agents.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `sourceUuid` | uuid | yes | — |
+| `title` | string | no | length 1–160 |
+| `refreshIntervalHours` | number \| number \| number \| number \| null | no | — |
+| `authHeaderName` | string \| null | no | — |
+| `authHeaderValue` | string | no | length 1–2048 |
+
+**Side effects.**
+- Changing authentication or enabling refresh queues a reread for ready/failed sources. Active agents may use the updated content.
+
+- knowledge:write is sensitive. URL sources only; omitted fields are preserved. authHeaderName=null removes the secret; a name without value preserves an existing secret. Values never return, only authHeaderConfigured.
+- Refresh accepts 1, 6, 24, 168 hours or null (manual). URL itself is immutable; remove authentication before changing origin through another surface.
+
+#### `reindex_knowledge_source`
+
+Queues a forced reread of one URL source.
+
+**Scope:** `knowledge:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** After the owner requests updated URL knowledge.
+
+Queue a forced re-read and reindex of one URL source. May spend embeddings. Does not mean indexing completed: follow list_knowledge_sources. Refuses a busy source.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `sourceUuid` | uuid | yes | — |
+
+**Side effects.**
+- Fetches the URL and can spend embeddings, even when the document has not changed.
+
+- knowledge:write is required; busy sources are refused. Poll list_knowledge_sources for ready and a new indexedAt; queued is not completion.
 
 #### `delete_knowledge_source`
 
@@ -2986,7 +3106,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 | — |
-| `instructions` | string | yes | length 1–12000 | — |
+| `instructions` | string | yes | length 1–20000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3020,6 +3140,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
@@ -3071,7 +3192,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | --- | --- | --- | --- | --- |
 | `agentUuid` | uuid | yes | — | — |
 | `name` | string | no | length 1–120 | — |
-| `instructions` | string | no | length 1–12000 | — |
+| `instructions` | string | no | length 1–20000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3105,8 +3226,65 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
 - Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
+
+#### `get_ai_summary_settings`
+
+Read automatic internal summary settings.
+
+**Scope:** `ai_agents:read`
+
+**When to use.** Before discussing or changing summary automation.
+
+Read automatic conversation summary settings; disabled by default.
+
+_No arguments._
+
+- Off by default. Defaults require two typed/transcribed lead messages and one human/AI-agent reply, excluding templates and menu clicks.
+
+#### `get_ai_summary_costs`
+
+Read daily costs and per-call usage for automatic summaries.
+
+**Scope:** `ai_agents:read`
+
+**When to use.** To inspect the last 30 days and the latest 100 calls in this company.
+
+Read daily AI summary costs and the latest 100 calls for this company.
+
+_No arguments._
+
+- Costs are estimated from provider usage and the catalog, in USD micros. Unknown outcomes retain a conservative reservation, shown separately.
+
+#### `update_ai_summary_settings`
+
+Configure automatic internal conversation summaries.
+
+**Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
+
+**When to use.** Only when the human explicitly requests configuring this company.
+
+Configure automatic internal summaries. Enabling permits billable AI calls and summary webhooks on future activity. Requires explicit write permission.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `enabled` | boolean | no | — |
+| `model` | string | no | — |
+| `triggers` | `stage_changed` \| `assigned` \| `resolved` \| `nightly`[] | no | 1–4 items |
+| `minLeadMessages` | integer | no | range 1–20 |
+| `minAgentMessages` | integer | no | range 1–20 |
+| `maxLines` | integer | no | range 2–4 |
+| `maxInputChars` | integer | no | range 2000–40000 |
+| `dailyBudgetUsd` | number | no | range 0–10000 |
+| `timezone` | string | no | length 0–80 |
+| `nightlyHour` | integer | no | range 0–23 |
+
+**Side effects.**
+- Enabling permits paid model calls, internal notes and conversation.ai_summary webhooks on future activity. No customer message is sent.
+
+- Requires settings.general and sensitive ai_agents:write. Omitted fields are preserved. Connect the model provider first. A conservative reservation enforces the daily USD budget; uncertain provider outcomes are not replayed automatically. Nightly processing uses standard synchronous pricing, not provider Batch pricing.

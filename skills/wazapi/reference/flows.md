@@ -8,7 +8,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `get_flow_block_schema` — Returns the field-level schema and constraints for one block type.
 - `get_flow_builder_context` — Returns the tenant resources a flow can reference: flows, custom fields, groups, agents, approved templates and tags.
 - `list_flows` — Lists the chatbot flows of the company, with node and edge counts.
-- `get_flow` — Fetches one flow with its full node and edge graph.
+- `get_flow` — Fetches a flow graph, monitoringRule, effectiveMonitoringRule and destination warnings.
 - `create_flow` — Creates an empty draft flow containing only the starting block.
 - `update_flow_graph` — Replaces the entire node and edge graph of a flow.
 - `validate_flow_graph` — Runs the full graph validation without persisting anything.
@@ -24,7 +24,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_business_schedules` — Lists the business schedules with weekly hours, exceptions and whether each is open now.
 - `create_business_schedule` — Creates a named business schedule.
 - `update_business_schedule` — Replaces the hours of a business schedule.
-- `update_flow` — Renames a flow or changes the channels and entries it supports.
+- `update_flow` — Renames a flow or changes channels, entries and its monitoringRule.
 - `delete_flow` — Permanently deletes a flow and its graph.
 
 #### `list_flow_block_types`
@@ -110,19 +110,21 @@ List chatbot flows from the authenticated Wazapi company
 
 #### `get_flow`
 
-Fetches one flow with its full node and edge graph.
+Fetches a flow graph, monitoringRule, effectiveMonitoringRule and destination warnings.
 
 **Scope:** `flows:read`
 
 **When to use.** Always immediately before `update_flow_graph`. The update is a full replace, so you need the current graph to modify it without deleting the rest.
 
-Fetch a single chatbot flow by UUID from the authenticated Wazapi company
+Fetch a single chatbot flow, monitoringRule, effectiveMonitoringRule with origin (pass flowSessionUuid for actual caller inheritance), and destination warnings from the authenticated Wazapi company
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
+| `flowSessionUuid` | uuid | no | — |
 
 - The returned `graph.nodes` / `graph.edges` are exactly the shape `update_flow_graph` expects back.
+- flowSessionUuid optionally resolves the real caller chain of that session; omission reports a standalone flow. Block timers still take priority. monitoringRule modes: default, disabled, start_flow, assign_group. Sending requires integer minutes 1–10080 and an active same-company target; fallbackGroupUuid omitted/null inherits company reserve. Self-target is rejected. Caller control variables cannot be forged through execute_flow or REST payloads.
 
 #### `create_flow`
 
@@ -550,24 +552,31 @@ Replace the name, time zone and weekly hours of a schedule. Flows that use it fo
 
 #### `update_flow`
 
-Renames a flow or changes the channels and entries it supports.
+Renames a flow or changes channels, entries and its monitoringRule.
 
 **Scope:** `flows:write`
 
 **When to use.** For metadata only. The graph goes through update_flow_graph and activation through update_flow_status.
 
-Rename a flow or change the channels it supports. The graph is edited with update_flow_graph and the status with update_flow_status.
+Rename a flow, change channels/entries or its monitoringRule. Default inherits the nearest caller (up to 10) then company; disabled stops monitoring. The graph is edited with update_flow_graph and the status with update_flow_status.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
 | `name` | string | no | length 1–120 |
+| `monitoringRule` | object | no | — |
 | `supportedEntries` | object | no | — |
 | `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `monitoringRule.mode` | `default` \| `disabled` \| `start_flow` \| `assign_group` | yes | — |
+| `monitoringRule.minutes` | integer | no | range 1–10080 |
+| `monitoringRule.flowUuid` | uuid \| null | no | — |
+| `monitoringRule.groupUuid` | uuid \| null | no | — |
+| `monitoringRule.fallbackGroupUuid` | uuid \| null | no | — |
 | `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
 | `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
 | `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
 
+- monitoringRule omitted preserves it; default clears the own rule; disabled stops monitoring here and in descendants inheriting it. start_flow/assign_group require minutes and flowUuid/groupUuid; reserve inherits company when empty. Own rules work with company default off. Live rule edits require explicit user authorization.
 - supportedEntries replaces the per-provider map. Empty lists allow all; default comments require explicit selection. Changing this filter also restricts subsequent inbound resumes.
 
 #### `delete_flow`

@@ -84,7 +84,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `knowledge:write` ⚠️ | `create_knowledge_source`, `update_knowledge_source`, `reindex_knowledge_source` |
 | `messages:media` ⚠️ | `send_media_message` |
 | `messages:read` | `list_messages` |
-| `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
+| `messages:write` | `react_to_message`, `send_text_message`, `send_product_message`, `send_template_message` |
 | `settings:read` | `get_stale_session_settings` |
 | `settings:write` ⚠️ | `update_stale_session_settings` |
 | `store:coupons` ⚠️ | `save_store_coupon` |
@@ -97,8 +97,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `users:read` | `get_agent`, `get_team_configuration_context`, `list_agents` |
 | `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
-| `whatsapp:read` | `list_channels`, `get_whatsapp_config`, `list_whatsapp_templates` |
-| `whatsapp:write` | `create_whatsapp_template`, `sync_whatsapp_templates` |
+| `whatsapp:read` | `list_channels`, `list_channel_events`, `get_whatsapp_config`, `list_whatsapp_templates` |
+| `whatsapp:write` | `set_channel_retired`, `create_whatsapp_template`, `sync_whatsapp_templates` |
 
 Scopes marked ⚠️ are sensitive: a token with broad access does **not** get them. They must be granted by name.
 
@@ -181,11 +181,11 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Session and directory** — `reference/workspace.md`
 
-`get_session_context`, `list_channels`, `get_group_distribution_report`, `get_group`, `create_group`, `update_group`, `get_agent`, `get_team_configuration_context`, `invite_agent`, `update_agent`, `list_groups`, `list_agents`, `delete_group`
+`get_session_context`, `list_channels`, `set_channel_retired`, `list_channel_events`, `get_group_distribution_report`, `get_group`, `create_group`, `update_group`, `get_agent`, `get_team_configuration_context`, `invite_agent`, `update_agent`, `list_groups`, `list_agents`, `delete_group`
 
 **Conversations and messaging** — `reference/conversations.md`
 
-`list_conversations`, `get_conversation`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `recalculate_team_reply`, `get_ownerless_fallback`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `get_inbox_response_settings`, `update_inbox_response_settings`, `get_entry_settings`, `update_entry_settings`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
+`list_conversations`, `get_conversation`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `recalculate_team_reply`, `get_ownerless_fallback`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `get_inbox_response_settings`, `update_inbox_response_settings`, `get_entry_settings`, `update_entry_settings`, `list_messages`, `react_to_message`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
 
 **Contacts, tags and custom fields** — `reference/contacts.md`
 

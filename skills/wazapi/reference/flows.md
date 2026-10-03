@@ -8,11 +8,13 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `get_flow_block_schema` — Returns the field-level schema and constraints for one block type.
 - `get_flow_builder_context` — Returns the tenant resources a flow can reference: flows, custom fields, groups, agents, approved templates and tags.
 - `list_flows` — Lists the chatbot flows of the company, with node and edge counts.
-- `get_flow` — Fetches one flow with its full node and edge graph.
+- `get_flow` — Fetches a flow graph, monitoringRule, effectiveMonitoringRule and destination warnings.
 - `create_flow` — Creates an empty draft flow containing only the starting block.
 - `update_flow_graph` — Replaces the entire node and edge graph of a flow.
 - `validate_flow_graph` — Runs the full graph validation without persisting anything.
 - `update_flow_status` — Switches a flow between draft and active.
+- `get_stale_session_settings` — Reads the stalled bot watchdog options for this company.
+- `update_stale_session_settings` — Configures the company watchdog for contact-input sessions without a block timer.
 - `execute_flow` — Starts an active flow for one contact right now, without waiting for a keyword.
 - `list_keywords` — Lists the keyword triggers and the default flow of each kind.
 - `create_keyword` — Makes a flow start when an inbound message matches a keyword.
@@ -22,7 +24,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_business_schedules` — Lists the business schedules with weekly hours, exceptions and whether each is open now.
 - `create_business_schedule` — Creates a named business schedule.
 - `update_business_schedule` — Replaces the hours of a business schedule.
-- `update_flow` — Renames a flow or changes the channels it supports.
+- `update_flow` — Renames a flow or changes channels, entries and its monitoringRule.
 - `delete_flow` — Permanently deletes a flow and its graph.
 
 #### `list_flow_block_types`
@@ -108,19 +110,21 @@ List chatbot flows from the authenticated Wazapi company
 
 #### `get_flow`
 
-Fetches one flow with its full node and edge graph.
+Fetches a flow graph, monitoringRule, effectiveMonitoringRule and destination warnings.
 
 **Scope:** `flows:read`
 
 **When to use.** Always immediately before `update_flow_graph`. The update is a full replace, so you need the current graph to modify it without deleting the rest.
 
-Fetch a single chatbot flow by UUID from the authenticated Wazapi company
+Fetch a single chatbot flow, monitoringRule, effectiveMonitoringRule with origin (pass flowSessionUuid for actual caller inheritance), and destination warnings from the authenticated Wazapi company
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
+| `flowSessionUuid` | uuid | no | — |
 
 - The returned `graph.nodes` / `graph.edges` are exactly the shape `update_flow_graph` expects back.
+- flowSessionUuid optionally resolves the real caller chain of that session; omission reports a standalone flow. Block timers still take priority. monitoringRule modes: default, disabled, start_flow, assign_group. Sending requires integer minutes 1–10080 and an active same-company target; fallbackGroupUuid omitted/null inherits company reserve. Self-target is rejected. Caller control variables cannot be forged through execute_flow or REST payloads.
 
 #### `create_flow`
 
@@ -135,11 +139,16 @@ Create a new draft chatbot flow in the authenticated Wazapi company
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 |
+| `supportedEntries` | object | no | — |
 | `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
+| `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
+| `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
 
 **Side effects.**
 - Writes a `flow.created` audit entry.
 
+- supportedEntries is a per-provider map. Empty lists allow all; default comment flows require comment explicitly. WhatsApp/Messenger only accept direct and ad.
 - The flow starts as `draft` and does not run until `update_flow_status` activates it.
 - `supportedProviders` is fixed at creation and constrains which blocks the graph may use.
 
@@ -162,19 +171,19 @@ Replaces the entire node and edge graph of a flow.
 
 Replace the full node and edge graph of an existing Wazapi flow after validating block schemas, provider compatibility, and tenant references
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `flowUuid` | uuid | yes | — |
-| `nodes` | object[] | yes | 1–300 items |
-| `edges` | object[] | yes | 0–800 items |
-| `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
-| `nodes[].position` | object | yes | — |
-| `nodes[].data` | object | no | — |
-| `edges[].source` | string | yes | length 1–120 |
-| `edges[].sourceHandle` | string \| null | no | — |
-| `edges[].target` | string | yes | length 1–120 |
-| `edges[].targetHandle` | string \| null | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — | — |
+| `nodes` | object[] | yes | 1–300 items | — |
+| `edges` | object[] | yes | 0–800 items | — |
+| `nodes[].key` | string | yes | length 1–120 | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].position` | object | yes | — | — |
+| `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
+| `edges[].source` | string | yes | length 1–120 | — |
+| `edges[].sourceHandle` | string \| null | no | — | — |
+| `edges[].target` | string | yes | length 1–120 | — |
+| `edges[].targetHandle` | string \| null | no | — | — |
 
 **Side effects.**
 - Replaces the whole graph. Nodes and edges absent from your payload are deleted.
@@ -182,8 +191,11 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 
 - This is not a patch. Call `get_flow` first and send the full graph back with your changes applied, or you will silently destroy the rest of the flow.
 - Limits: 1 to 300 nodes, at most 800 edges.
+- For http_request, mappingsOn: "success" saves responseMappings and saveResponseTo only on HTTP 2xx; omitted or "always" keeps mapping error responses too. Failure routing and notices stay unchanged.
+- Each responseMappings item accepts skipEmpty: true to keep the previous variable when sourcePath resolves to null, a missing value or an empty string. The default is false; 0 and false are not empty. Mapping select fields still accepts their labels.
 - Cart nodes have success/failure exits. Checkout mode cart requires pronto, pedido_criado, pago, falha, expirado and cancelado exits. Saving a graph does not create a cart or payment.
 - Node `key` is your own identifier and is what `edges` reference — it is not a uuid.
+- On assign_agent and ai_agent, data.leadExpectsReply accepts true (default), false or "auto". Auto prevents a new team wait after an AI/interactive timeout in the same session without a later lead message; a legitimate AI handoff still marks. Existing legitimate waits are preserved. Timeout provenance does not cross into a new flow session.
 
 #### `validate_flow_graph`
 
@@ -195,19 +207,19 @@ Runs the full graph validation without persisting anything.
 
 Validate a candidate node and edge graph for an existing Wazapi flow without persisting any change
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `flowUuid` | uuid | yes | — |
-| `nodes` | object[] | yes | 1–300 items |
-| `edges` | object[] | yes | 0–800 items |
-| `nodes[].key` | string | yes | length 1–120 |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
-| `nodes[].position` | object | yes | — |
-| `nodes[].data` | object | no | — |
-| `edges[].source` | string | yes | length 1–120 |
-| `edges[].sourceHandle` | string \| null | no | — |
-| `edges[].target` | string | yes | length 1–120 |
-| `edges[].targetHandle` | string \| null | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `flowUuid` | uuid | yes | — | — |
+| `nodes` | object[] | yes | 1–300 items | — |
+| `edges` | object[] | yes | 0–800 items | — |
+| `nodes[].key` | string | yes | length 1–120 | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].position` | object | yes | — | — |
+| `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
+| `edges[].source` | string | yes | length 1–120 | — |
+| `edges[].sourceHandle` | string \| null | no | — | — |
+| `edges[].target` | string | yes | length 1–120 | — |
+| `edges[].targetHandle` | string \| null | no | — | — |
 
 - Accepts exactly the same payload as `update_flow_graph`, so you can validate then send the identical object.
 - Shared cart validation checks UUID references, versions, item operations and checkout mode exclusivity; it never reserves stock or sends messages.
@@ -232,6 +244,49 @@ Change a Wazapi flow status between draft and active inside the authenticated co
 - Writes a `flow.status.toggled` audit entry.
 
 - Confirm with the user before activating — this changes what real contacts receive.
+
+#### `get_stale_session_settings`
+
+Reads the stalled bot watchdog options for this company.
+
+**Scope:** `settings:read`
+
+**When to use.** Before proposing or changing watchdog automation.
+
+Read the company watchdog options for sessions waiting for contact input without a block timer.
+
+_No arguments._
+
+- Requires settings.general. Null minutes means disabled.
+
+#### `update_stale_session_settings`
+
+Configures the company watchdog for contact-input sessions without a block timer.
+
+**Scope:** `settings:write` — **sensitive, never granted by broad access**
+
+**When to use.** Only when the company owner explicitly asks to configure this automation.
+
+Configure the company watchdog. Null minutes disables it; enabling can start flows or assign groups on the next minute sweep, including old sessions. Omitted fields are preserved.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `staleSessionMaxAgeHours` | integer | no | min 1 |
+| `staleSessionCloseOld` | boolean | no | — |
+| `staleSessionMinutes` | integer \| null | no | — |
+| `staleSessionAction` | `start_flow` \| `assign_group` \| null | no | — |
+| `staleSessionFlowUuid` | uuid \| null | no | — |
+| `staleSessionGroupUuid` | uuid \| null | no | — |
+| `staleSessionFallbackGroupUuid` | uuid \| null | no | — |
+
+**Side effects.**
+- Enabling it can start flows and transfer existing conversations on the next minute sweep.
+
+- Sensitive settings:write scope and settings.general are required; broad mcp is insufficient.
+- Read the settings and discover active flow/group UUIDs first. Show the proposed settings and obtain approval before enabling.
+- Null minutes disables it. Omitted fields remain unchanged. No company-specific flow or UUID is built into the watchdog.
+- staleSessionMaxAgeHours defaults to 24 and uses the last contact message. Older sessions are marked evaluated and skipped. staleSessionCloseOld defaults to false; when true it ends only the old flow session with one internal note, without sending a message or changing conversation status, group or assignee. No inbound message means unknown age: skip, never silently close.
+- Closed messaging window: fallback group, or one logged block per waiting state. Block timers take priority.
 
 #### `execute_flow`
 
@@ -301,11 +356,13 @@ Make a flow start when an inbound message matches a keyword. Without a trigger o
 | --- | --- | --- | --- |
 | `keyword` | string | yes | length 1–120 |
 | `matchType` | `exact` \| `starts_with` \| `contains` | yes | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
 | `flowUuid` | uuid | yes | — |
 
 **Side effects.**
 - Goes live immediately for every inbound message of the company.
 
+- supportedEntries is an optional entry-kind list; empty means all. The target flow must also allow the entry.
 - Match is case-insensitive. `exact` is the safe default; `contains` catches words inside longer messages and can steal traffic from other flows.
 - The same keyword with the same match type cannot exist twice.
 
@@ -495,19 +552,32 @@ Replace the name, time zone and weekly hours of a schedule. Flows that use it fo
 
 #### `update_flow`
 
-Renames a flow or changes the channels it supports.
+Renames a flow or changes channels, entries and its monitoringRule.
 
 **Scope:** `flows:write`
 
 **When to use.** For metadata only. The graph goes through update_flow_graph and activation through update_flow_status.
 
-Rename a flow or change the channels it supports. The graph is edited with update_flow_graph and the status with update_flow_status.
+Rename a flow, change channels/entries or its monitoringRule. Default inherits the nearest caller (up to 10) then company; disabled stops monitoring. The graph is edited with update_flow_graph and the status with update_flow_status.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
 | `name` | string | no | length 1–120 |
+| `monitoringRule` | object | no | — |
+| `supportedEntries` | object | no | — |
 | `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `monitoringRule.mode` | `default` \| `disabled` \| `start_flow` \| `assign_group` | yes | — |
+| `monitoringRule.minutes` | integer | no | range 1–10080 |
+| `monitoringRule.flowUuid` | uuid \| null | no | — |
+| `monitoringRule.groupUuid` | uuid \| null | no | — |
+| `monitoringRule.fallbackGroupUuid` | uuid \| null | no | — |
+| `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
+| `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
+| `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
+
+- monitoringRule omitted preserves it; default clears the own rule; disabled stops monitoring here and in descendants inheriting it. start_flow/assign_group require minutes and flowUuid/groupUuid; reserve inherits company when empty. Own rules work with company default off. Live rule edits require explicit user authorization.
+- supportedEntries replaces the per-provider map. Empty lists allow all; default comments require explicit selection. Changing this filter also restricts subsequent inbound resumes.
 
 #### `delete_flow`
 

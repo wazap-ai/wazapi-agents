@@ -63,26 +63,30 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `ai_agents:read` | `list_ai_agents`, `get_ai_agent`, `get_ai_agent_configuration_context` |
-| `ai_agents:write` ⚠️ | `create_ai_agent`, `update_ai_agent` |
+| `ai_agents:read` | `get_ai_summary_settings`, `get_ai_summary_costs`, `list_company_queries`, `list_ai_agent_guard_rules`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
+| `ai_agents:write` ⚠️ | `update_ai_summary_settings`, `create_company_query`, `update_company_query`, `test_company_query`, `save_ai_agent_guard_rule`, `create_ai_agent`, `update_ai_agent`, `test_ai_agent`, `preview_ai_summary` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
-| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions` |
-| `contacts:write` | `create_contact`, `update_contact`, `create_custom_field`, `update_custom_field` |
+| `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
+| `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
 | `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
-| `conversations:write` | `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
+| `conversations:write` | `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
 | `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
-| `data:delete` ⚠️ | `delete_keyword`, `delete_tag`, `delete_custom_field`, `delete_crm_stage`, `delete_store_category`, `delete_flow`, `delete_contact`, `delete_store_product`, `archive_crm_opportunity`, `delete_whatsapp_template`, `delete_knowledge_source`, `delete_group` |
+| `data:delete` ⚠️ | `delete_company_query`, `delete_keyword`, `delete_tag`, `delete_custom_field`, `delete_crm_stage`, `delete_store_category`, `delete_flow`, `delete_contact`, `delete_store_product`, `archive_crm_opportunity`, `delete_whatsapp_template`, `delete_knowledge_source`, `delete_group` |
+| `entries:read` | `get_entry_settings` |
+| `entries:write` ⚠️ | `update_entry_settings` |
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors`, `list_business_schedules` |
 | `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
-| `groups:read` | `get_group`, `list_groups` |
+| `groups:read` | `get_group`, `get_group_distribution_report`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
-| `knowledge:write` ⚠️ | `create_knowledge_source` |
+| `knowledge:write` ⚠️ | `create_knowledge_source`, `update_knowledge_source`, `reindex_knowledge_source` |
 | `messages:media` ⚠️ | `send_media_message` |
 | `messages:read` | `list_messages` |
-| `messages:write` | `send_text_message`, `send_product_message`, `send_template_message` |
+| `messages:write` | `react_to_message`, `send_text_message`, `send_product_message`, `send_template_message` |
+| `settings:read` | `get_stale_session_settings` |
+| `settings:write` ⚠️ | `update_stale_session_settings` |
 | `store:coupons` ⚠️ | `save_store_coupon` |
 | `store:discounts` ⚠️ | `save_store_discount_policy` |
 | `store:orders` ⚠️ | `create_store_order` |
@@ -93,12 +97,12 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `users:read` | `get_agent`, `get_team_configuration_context`, `list_agents` |
 | `users:write` ⚠️ | `invite_agent`, `update_agent` |
 | `whatsapp:credentials` ⚠️ | `configure_whatsapp` |
-| `whatsapp:read` | `list_channels`, `get_whatsapp_config`, `list_whatsapp_templates` |
-| `whatsapp:write` | `create_whatsapp_template`, `sync_whatsapp_templates` |
+| `whatsapp:read` | `list_channels`, `list_channel_events`, `get_whatsapp_config`, `list_whatsapp_templates` |
+| `whatsapp:write` | `set_channel_retired`, `create_whatsapp_template`, `sync_whatsapp_templates` |
 
 Scopes marked ⚠️ are sensitive: a token with broad access does **not** get them. They must be granted by name.
 
-Existing connections keep their current permissions when AI-agent tools become available. A grant containing `mcp` automatically includes `ai_agents:read`; a limited grant needs that read scope explicitly. Creating or editing agents always requires the sensitive `ai_agents:write` scope, even with broad access.
+Existing connections keep their current permissions when AI-agent tools become available. A grant containing `mcp` automatically includes `ai_agents:read`; a limited grant needs that read scope explicitly. Creating, editing or testing agents always requires the sensitive `ai_agents:write` scope, even with broad access.
 
 - **Existing OAuth connection:** the client registration must allow `ai_agents:write`, and a new authorization request must explicitly request it (for example, `mcp ai_agents:write`). Ask the user to approve it on the consent screen. A client registered only for `mcp` must register again with the additional scope before requesting it. Reconnecting with only `mcp`, or refreshing a token, does not grant write access. If the permission is absent from consent, the client must change its registration/request; the user cannot enable an unrequested scope there.
 - **Existing static token:** at Settings → MCP, issue a replacement token with `ai_agents:read` and “Criar e editar agentes de IA” (`ai_agents:write`), then replace the token in the client. After confirming the replacement works, revoke the old token if it is no longer used by any integration.
@@ -127,6 +131,7 @@ A record that does not exist and a record belonging to another company return th
 ### Reply to someone waiting
 
 `list_conversations` with `status: "open"` → `list_messages` to read the thread → draft the reply → **confirm with the user** → `send_text_message`.
+Public API webhooks `conversation.assigned` and `conversation.status_changed` are opt-in in Settings → API. They include previous assignment/status, conversation, integration-specific contact.external_id and actor (user, flow, ai_agent, api, mcp or system). MCP changes identify actor.type=mcp. Unchanged values and rolled-back writes emit nothing; ending an AI session alone is not a conversation status change.
 
 Remember that sending sets the conversation to `pending` and assigns it to you when it has no agent; one that someone else holds stays with them. Do not use it for read-only triage.
 
@@ -176,19 +181,19 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Session and directory** — `reference/workspace.md`
 
-`get_session_context`, `list_channels`, `get_group`, `create_group`, `update_group`, `get_agent`, `get_team_configuration_context`, `invite_agent`, `update_agent`, `list_groups`, `list_agents`, `delete_group`
+`get_session_context`, `list_channels`, `set_channel_retired`, `list_channel_events`, `get_group_distribution_report`, `get_group`, `create_group`, `update_group`, `get_agent`, `get_team_configuration_context`, `invite_agent`, `update_agent`, `list_groups`, `list_agents`, `delete_group`
 
 **Conversations and messaging** — `reference/conversations.md`
 
-`list_conversations`, `get_conversation`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `list_messages`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
+`list_conversations`, `get_conversation`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `recalculate_team_reply`, `get_ownerless_fallback`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `get_inbox_response_settings`, `update_inbox_response_settings`, `get_entry_settings`, `update_entry_settings`, `list_messages`, `react_to_message`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
 
 **Contacts, tags and custom fields** — `reference/contacts.md`
 
-`list_contacts`, `get_contact`, `create_contact`, `update_contact`, `block_contact`, `unblock_contact`, `list_tags`, `create_tag`, `list_custom_field_definitions`, `update_tag`, `delete_tag`, `create_custom_field`, `update_custom_field`, `delete_custom_field`, `delete_contact`
+`list_contacts`, `get_contact`, `create_contact`, `update_contact`, `block_contact`, `unblock_contact`, `list_tags`, `create_tag`, `list_custom_field_definitions`, `update_tag`, `delete_tag`, `get_conversation_panel`, `update_conversation_panel`, `create_custom_field`, `update_custom_field`, `delete_custom_field`, `delete_contact`
 
 **Flows** — `reference/flows.md`
 
-`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `execute_flow`, `list_keywords`, `create_keyword`, `delete_keyword`, `set_default_flow`, `get_flow_errors`, `list_business_schedules`, `create_business_schedule`, `update_business_schedule`, `update_flow`, `delete_flow`
+`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `get_stale_session_settings`, `update_stale_session_settings`, `execute_flow`, `list_keywords`, `create_keyword`, `delete_keyword`, `set_default_flow`, `get_flow_errors`, `list_business_schedules`, `create_business_schedule`, `update_business_schedule`, `update_flow`, `delete_flow`
 
 **WhatsApp channel and templates** — `reference/whatsapp.md`
 
@@ -204,8 +209,8 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **AI agents** — `reference/ai-agents.md`
 
-`list_ai_agents`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `update_ai_agent`
+`list_company_queries`, `create_company_query`, `update_company_query`, `delete_company_query`, `test_company_query`, `list_ai_agent_guard_rules`, `save_ai_agent_guard_rule`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `test_ai_agent`, `preview_ai_summary`, `update_ai_agent`, `get_ai_summary_settings`, `get_ai_summary_costs`, `update_ai_summary_settings`
 
 **Knowledge base** — `reference/knowledge.md`
 
-`list_knowledge_sources`, `search_knowledge`, `create_knowledge_source`, `delete_knowledge_source`
+`list_knowledge_sources`, `search_knowledge`, `create_knowledge_source`, `update_knowledge_source`, `reindex_knowledge_source`, `delete_knowledge_source`

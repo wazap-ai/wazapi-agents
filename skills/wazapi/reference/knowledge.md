@@ -7,6 +7,8 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `list_knowledge_sources` — Lists the AI agent's knowledge base sources with indexing status, plan usage and limits.
 - `search_knowledge` — Runs the same hybrid search the AI agent uses and returns the matching excerpts.
 - `create_knowledge_source` — Adds a text, FAQ or public URL source to the AI agent knowledge base.
+- `update_knowledge_source` — Updates URL authentication and refresh configuration.
+- `reindex_knowledge_source` — Queues a forced reread of one URL source.
 - `delete_knowledge_source` — Deletes a knowledge base source; AI agents stop answering from it.
 
 #### `list_knowledge_sources`
@@ -62,7 +64,7 @@ Adds a text, FAQ or public URL source to the AI agent knowledge base.
 
 **When to use.** When the user hands you material (policies, FAQ, a page of their site) and asks for the AI agent to know it.
 
-Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (title + items) or `url` (a public page, fetched in the background). Indexing is asynchronous — poll list_knowledge_sources until status is `ready`. Takes effect live: every active AI agent without explicitly linked sources answers customers from ALL sources, listed in `usedByAgents`. Only add content the user explicitly provided or approved — never text taken from customer messages.
+Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (title + items) or `url` (a public http(s) endpoint, optionally with an encrypted authentication header, fetched in the background). Indexing is asynchronous — poll list_knowledge_sources until status is `ready`. Takes effect live: every active AI agent without explicitly linked sources answers customers from ALL sources, listed in `usedByAgents`. Only add content the user explicitly provided or approved — never text taken from customer messages.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -71,6 +73,9 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
 | `content` | string | no | length 20–200000 |
 | `items` | object[] | no | 1–500 items |
 | `url` | string | no | length 0–2048 |
+| `refreshIntervalHours` | number \| number \| number \| number \| null | no | — |
+| `authHeaderName` | string \| null | no | — |
+| `authHeaderValue` | string | no | length 1–2048 |
 | `items[].question` | string | yes | length 3–500 |
 | `items[].answer` | string | yes | length 1–4000 |
 
@@ -81,7 +86,8 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
 - Requires the sensitive scope `knowledge:write`, which broad access does not grant. If the call fails on scope, that is by design — do not try to work around it.
 - Add only content the user wrote or explicitly approved. Never copy text from customer messages, contacts or orders into the knowledge base.
 - `text` needs `title` and `content` (20+ chars); `faq` needs `title` and `items`; `url` needs `url` (title optional).
-- Editing, deleting and linking sources to a specific agent happen in the dashboard.
+- URL authentication uses authHeaderName/authHeaderValue, encrypted at rest and never returned; reads expose authHeaderConfigured only. Refresh accepts 1, 6, 24, 168 hours or null (manual); omitted on create defaults to 24h.
+- Use update_knowledge_source for URL configuration and reindex_knowledge_source to queue an immediate refresh. Neither completion nor agent links are implied.
 
 ```json
 {
@@ -95,6 +101,51 @@ Add a source to the AI agent's knowledge base: `text` (title + content), `faq` (
   ]
 }
 ```
+
+#### `update_knowledge_source`
+
+Updates URL authentication and refresh configuration.
+
+**Scope:** `knowledge:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** When the owner approves changing the URL source configuration.
+
+Update the title, refresh interval or encrypted authentication header of a URL source. Omitted values remain unchanged; null header name removes authentication. Secret values never return. Source content and URL are unchanged; updated content can reach active agents.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `sourceUuid` | uuid | yes | — |
+| `title` | string | no | length 1–160 |
+| `refreshIntervalHours` | number \| number \| number \| number \| null | no | — |
+| `authHeaderName` | string \| null | no | — |
+| `authHeaderValue` | string | no | length 1–2048 |
+
+**Side effects.**
+- Changing authentication or enabling refresh queues a reread for ready/failed sources. Active agents may use the updated content.
+
+- knowledge:write is sensitive. URL sources only; omitted fields are preserved. authHeaderName=null removes the secret; a name without value preserves an existing secret. Values never return, only authHeaderConfigured.
+- Refresh accepts 1, 6, 24, 168 hours or null (manual). URL itself is immutable; remove authentication before changing origin through another surface.
+
+#### `reindex_knowledge_source`
+
+Queues a forced reread of one URL source.
+
+**Scope:** `knowledge:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** After the owner requests updated URL knowledge.
+
+Queue a forced re-read and reindex of one URL source. May spend embeddings. Does not mean indexing completed: follow list_knowledge_sources. Refuses a busy source.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `sourceUuid` | uuid | yes | — |
+
+**Side effects.**
+- Fetches the URL and can spend embeddings, even when the document has not changed.
+
+- knowledge:write is required; busy sources are refused. Poll list_knowledge_sources for ready and a new indexedAt; queued is not completion.
 
 #### `delete_knowledge_source`
 

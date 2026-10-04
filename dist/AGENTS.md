@@ -60,8 +60,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `ai_agents:read` | `get_ai_summary_settings`, `get_ai_summary_costs`, `list_company_queries`, `list_ai_agent_guard_rules`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
-| `ai_agents:write` ⚠️ | `update_ai_summary_settings`, `create_company_query`, `update_company_query`, `test_company_query`, `save_ai_agent_guard_rule`, `create_ai_agent`, `update_ai_agent`, `test_ai_agent`, `preview_ai_summary` |
+| `ai_agents:read` | `get_ai_summary_settings`, `get_ai_summary_costs`, `list_company_queries`, `list_ai_agent_guard_rules`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_duty_settings`, `get_ai_agent`, `get_ai_agent_configuration_context` |
+| `ai_agents:write` ⚠️ | `update_ai_summary_settings`, `create_company_query`, `update_company_query`, `test_company_query`, `save_ai_agent_guard_rule`, `update_ai_duty_settings`, `create_ai_agent`, `update_ai_agent`, `test_ai_agent`, `preview_ai_summary` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
 | `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
@@ -3311,6 +3311,41 @@ List AI agents, their status and linked flows in the authenticated company. Huma
 _No arguments._
 
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
+
+#### `get_ai_duty_settings`
+
+Read AI duty settings
+
+**Scope:** `ai_agents:read`
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Read the company duty mode, agent, channel list and daily suggestion cap without calling AI.
+
+Read company AI duty configuration. Default desligado; sombra stores suggestions, nota creates internal notes. Never sends to the contact. No AI call.
+
+_No arguments._
+
+- Default desligado. sombra stores private shadow records; nota creates one internal note. Neither sends to a contact. Requires ai_agents:read and settings.general. Phase 1 only supports WhatsApp.
+
+#### `update_ai_duty_settings`
+
+Update AI duty settings
+
+**Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Replace company duty configuration only after explicit human authorization to change or enable it.
+
+Replace AI duty configuration for this company. Requires an active company agent when enabled. Explicitly choose desligado, sombra or nota; no contact-sending mode exists. Daily company cap defaults to 60.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `mode` | `desligado` \| `sombra` \| `nota` | yes | — |
+| `agentUuid` | uuid \| null | yes | — |
+| `channels` | `whatsapp`[] | yes | 0–1 items |
+| `dailyLimit` | integer | yes | range 1–1000 |
+
+- Requires ai_agents:write and settings.general. An enabled mode requires an active agent from this company. dailyLimit is 1–1000, default 60; reservations including failed attempts count toward the cap in the company time zone. Empty channels disables eligibility. No send or takeover mode exists.
 
 #### `get_ai_agent_usage`
 

@@ -63,8 +63,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | Scope | Tools |
 | --- | --- |
 | `(none)` | `get_session_context` |
-| `ai_agents:read` | `get_ai_summary_settings`, `get_ai_summary_costs`, `list_company_queries`, `list_ai_agent_guard_rules`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context` |
-| `ai_agents:write` ⚠️ | `update_ai_summary_settings`, `create_company_query`, `update_company_query`, `test_company_query`, `save_ai_agent_guard_rule`, `create_ai_agent`, `update_ai_agent`, `test_ai_agent`, `preview_ai_summary` |
+| `ai_agents:read` | `get_ai_summary_settings`, `get_ai_summary_costs`, `list_company_queries`, `list_ai_agent_guard_rules`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_duty_settings`, `get_ai_agent`, `get_ai_agent_configuration_context` |
+| `ai_agents:write` ⚠️ | `update_ai_summary_settings`, `create_company_query`, `update_company_query`, `test_company_query`, `save_ai_agent_guard_rule`, `update_ai_duty_settings`, `create_ai_agent`, `update_ai_agent`, `test_ai_agent`, `preview_ai_summary` |
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
 | `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
@@ -209,7 +209,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **AI agents** — `reference/ai-agents.md`
 
-`list_company_queries`, `create_company_query`, `update_company_query`, `delete_company_query`, `test_company_query`, `list_ai_agent_guard_rules`, `save_ai_agent_guard_rule`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `test_ai_agent`, `preview_ai_summary`, `update_ai_agent`, `get_ai_summary_settings`, `get_ai_summary_costs`, `update_ai_summary_settings`
+`list_company_queries`, `create_company_query`, `update_company_query`, `delete_company_query`, `test_company_query`, `list_ai_agent_guard_rules`, `save_ai_agent_guard_rule`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_duty_settings`, `update_ai_duty_settings`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `test_ai_agent`, `preview_ai_summary`, `update_ai_agent`, `get_ai_summary_settings`, `get_ai_summary_costs`, `update_ai_summary_settings`
 
 **Knowledge base** — `reference/knowledge.md`
 

@@ -13,6 +13,8 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `save_ai_agent_guard_rule` — Create or patch a human-approved reply guard rule.
 - `list_ai_agent_guard_hits` — Read reply guard triggers and outcomes.
 - `list_ai_agents` — List AI agents
+- `get_ai_duty_settings` — Read AI duty settings
+- `update_ai_duty_settings` — Update AI duty settings
 - `get_ai_agent_usage` — Get AI agent usage and cost
 - `get_ai_agent` — Get AI agent
 - `get_ai_agent_configuration_context` — Get AI agent configuration context
@@ -224,6 +226,41 @@ List AI agents, their status and linked flows in the authenticated company. Huma
 _No arguments._
 
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
+
+#### `get_ai_duty_settings`
+
+Read AI duty settings
+
+**Scope:** `ai_agents:read`
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Read the company duty mode, agent, channel list and daily suggestion cap without calling AI.
+
+Read company AI duty configuration. Default desligado; sombra stores suggestions, nota creates internal notes. Never sends to the contact. No AI call.
+
+_No arguments._
+
+- Default desligado. sombra stores private shadow records; nota creates one internal note. Neither sends to a contact. Requires ai_agents:read and settings.general. Phase 1 only supports WhatsApp.
+
+#### `update_ai_duty_settings`
+
+Update AI duty settings
+
+**Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
+**Plan:** requires the Business plan (AI agent).
+
+**When to use.** Replace company duty configuration only after explicit human authorization to change or enable it.
+
+Replace AI duty configuration for this company. Requires an active company agent when enabled. Explicitly choose desligado, sombra or nota; no contact-sending mode exists. Daily company cap defaults to 60.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `mode` | `desligado` \| `sombra` \| `nota` | yes | — |
+| `agentUuid` | uuid \| null | yes | — |
+| `channels` | `whatsapp`[] | yes | 0–1 items |
+| `dailyLimit` | integer | yes | range 1–1000 |
+
+- Requires ai_agents:write and settings.general. An enabled mode requires an active agent from this company. dailyLimit is 1–1000, default 60; reservations including failed attempts count toward the cap in the company time zone. Empty channels disables eligibility. No send or takeover mode exists.
 
 #### `get_ai_agent_usage`
 

@@ -804,6 +804,24 @@
       "sideEffects": []
     },
     {
+      "name": "get_ai_duty_settings",
+      "category": "ai_agents",
+      "summary": "Read AI duty settings",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_ai_duty_settings",
+      "category": "ai_agents",
+      "summary": "Update AI duty settings",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
       "name": "get_ai_agent_usage",
       "category": "ai_agents",
       "summary": "Get AI agent usage and cost",

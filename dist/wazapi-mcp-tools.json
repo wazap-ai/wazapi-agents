@@ -3,6 +3,8 @@
   "endpoint": "https://wazapi.io/mcp",
   "transport": "streamable-http",
   "sensitiveScopes": [
+    "entries:write",
+    "settings:write",
     "store:coupons",
     "store:discounts",
     "whatsapp:credentials",
@@ -63,7 +65,7 @@
     {
       "name": "get_flow",
       "category": "flows",
-      "summary": "Fetches one flow with its full node and edge graph.",
+      "summary": "Fetches a flow graph, monitoringRule, effectiveMonitoringRule and destination warnings.",
       "scope": "flows:read",
       "requiresPlan": null,
       "mutates": false,
@@ -111,6 +113,26 @@
       "sideEffects": [
         "An active flow starts responding to real customers immediately.",
         "Writes a `flow.status.toggled` audit entry."
+      ]
+    },
+    {
+      "name": "get_stale_session_settings",
+      "category": "flows",
+      "summary": "Reads the stalled bot watchdog options for this company.",
+      "scope": "settings:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_stale_session_settings",
+      "category": "flows",
+      "summary": "Configures the company watchdog for contact-input sessions without a block timer.",
+      "scope": "settings:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Enabling it can start flows and transfer existing conversations on the next minute sweep."
       ]
     },
     {
@@ -172,6 +194,17 @@
       "sideEffects": []
     },
     {
+      "name": "react_to_message",
+      "category": "messaging",
+      "summary": "React to a message, or remove your own reaction.",
+      "scope": "messages:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Sends a provider reaction. A successful nonempty reaction counts as a team answer in last_message, human_reply and team_reply. Does not claim or transfer the conversation."
+      ]
+    },
+    {
       "name": "send_text_message",
       "category": "messaging",
       "summary": "Sends a free-text reply inside an existing conversation.",
@@ -214,6 +247,26 @@
       "name": "list_channels",
       "category": "directory",
       "summary": "Lists the WhatsApp, Instagram and Messenger channels connected to the company.",
+      "scope": "whatsapp:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "set_channel_retired",
+      "category": "directory",
+      "summary": "Retires or un-retires a disconnected channel without deleting it.",
+      "scope": "whatsapp:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Records the administrator and time. Retirement hides home banners and notification emails; conversations, credentials and connection state are preserved."
+      ]
+    },
+    {
+      "name": "list_channel_events",
+      "category": "directory",
+      "summary": "Reads channel state changes, actor, account send rejections/recovery and dropped inbound event metadata.",
       "scope": "whatsapp:read",
       "requiresPlan": null,
       "mutates": false,
@@ -318,6 +371,15 @@
       "sideEffects": []
     },
     {
+      "name": "update_conversation_fields",
+      "category": "conversations",
+      "summary": "Updates custom field values in a visible conversation.",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
       "name": "update_conversation_status",
       "category": "conversations",
       "summary": "Moves a conversation between open, pending and resolved.",
@@ -339,6 +401,15 @@
       "sideEffects": [
         "Writes a `conversation.assigned` audit entry."
       ]
+    },
+    {
+      "name": "get_group_distribution_report",
+      "category": "directory",
+      "summary": "Read daily group receipts, presence and distribution queue waits.",
+      "scope": "groups:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
     },
     {
       "name": "get_group",
@@ -650,9 +721,92 @@
       ]
     },
     {
+      "name": "list_company_queries",
+      "category": "ai_agents",
+      "summary": "list company queries for the active company.",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "create_company_query",
+      "category": "ai_agents",
+      "summary": "create company query for the active company.",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_company_query",
+      "category": "ai_agents",
+      "summary": "update company query for the active company.",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "delete_company_query",
+      "category": "ai_agents",
+      "summary": "delete company query for the active company.",
+      "scope": "data:delete",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "test_company_query",
+      "category": "ai_agents",
+      "summary": "test company query for the active company.",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "list_ai_agent_guard_rules",
+      "category": "ai_agents",
+      "summary": "Read this agent reply guard rules.",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "save_ai_agent_guard_rule",
+      "category": "ai_agents",
+      "summary": "Create or patch a human-approved reply guard rule.",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Saves and audits configuration. New rules must be ensaio; only a later patch may activate. Active rules permit one paid text-only rewrite, then safe_text or the agent handoff group."
+      ]
+    },
+    {
+      "name": "list_ai_agent_guard_hits",
+      "category": "ai_agents",
+      "summary": "Read reply guard triggers and outcomes.",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
       "name": "list_ai_agents",
       "category": "ai_agents",
       "summary": "List AI agents",
+      "scope": "ai_agents:read",
+      "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_ai_agent_usage",
+      "category": "ai_agents",
+      "summary": "Get AI agent usage and cost",
       "scope": "ai_agents:read",
       "requiresPlan": "aiAgent",
       "mutates": false,
@@ -685,6 +839,28 @@
       "mutates": true,
       "sideEffects": [
         "Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard."
+      ]
+    },
+    {
+      "name": "test_ai_agent",
+      "category": "ai_agents",
+      "summary": "Test AI agent",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Calls company BYOK and consumes budget. Records cost and metadata-only audit; 10 tests/minute per company (or lower plan cap), fail closed if limiter is unavailable. No conversation, message, CRM, field, cart, order, payment or notification is created."
+      ]
+    },
+    {
+      "name": "preview_ai_summary",
+      "category": "ai_agents",
+      "summary": "Preview a conversation summary without changing fields or creating notes or webhooks.",
+      "scope": "ai_agents:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Calls the company model and charges summary daily budget and AI usage with source summary_preview."
       ]
     },
     {
@@ -726,6 +902,28 @@
       "sideEffects": [
         "Goes live once indexed: every active AI agent without explicitly linked sources answers customers from ALL sources. The response lists them in `usedByAgents`.",
         "A `url` source is fetched by the server in the background; only public http(s) addresses are accepted."
+      ]
+    },
+    {
+      "name": "update_knowledge_source",
+      "category": "knowledge",
+      "summary": "Updates URL authentication and refresh configuration.",
+      "scope": "knowledge:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Changing authentication or enabling refresh queues a reread for ready/failed sources. Active agents may use the updated content."
+      ]
+    },
+    {
+      "name": "reindex_knowledge_source",
+      "category": "knowledge",
+      "summary": "Queues a forced reread of one URL source.",
+      "scope": "knowledge:write",
+      "requiresPlan": "aiAgent",
+      "mutates": true,
+      "sideEffects": [
+        "Fetches the URL and can spend embeddings, even when the document has not changed."
       ]
     },
     {
@@ -890,6 +1088,84 @@
       ]
     },
     {
+      "name": "recalculate_team_reply",
+      "category": "conversations",
+      "summary": "Preview or recalculate waiting-for-team markers, one company page at a time.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_ownerless_fallback",
+      "category": "conversations",
+      "summary": "Read ownerless fallback destinations and warnings.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_ownerless_fallback",
+      "category": "conversations",
+      "summary": "Configure automatic group routing for ownerless conversations.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "After any flow termination or completed inbound routing, eligible conversations enter the normal group queue/distribution with an internal note and system webhooks. No outbound message is sent."
+      ]
+    },
+    {
+      "name": "apply_ownerless_fallback",
+      "category": "conversations",
+      "summary": "Preview or explicitly apply fallback to current ownerless stock.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "dryRun=false assigns eligible conversations with one internal system note through normal distribution, including balanced_daily; no message goes to the person."
+      ]
+    },
+    {
+      "name": "get_inbox_response_settings",
+      "category": "conversations",
+      "summary": "Read the company unanswered and overdue clock mode.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_inbox_response_settings",
+      "category": "conversations",
+      "summary": "Opt the company into human-reply unanswered views, or restore last-message behavior.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_conversation_panel",
+      "category": "contacts",
+      "summary": "Read company cards, native placements, visibility options and warnings.",
+      "scope": "contacts:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_conversation_panel",
+      "category": "contacts",
+      "summary": "Configure card titles, Hugeicons, ordering and native placements.",
+      "scope": "contacts:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "transferTargets (all/members, default all) limits only the panel transfer menu and unitary assignment to actual group members, including member-supervisors; bulk assignment and automatic distribution stay unchanged. phoneEquivalenceBrNinthDigit (false) enables same-company Brazilian mobile lookup with/without the ninth digit without modifying existing contacts or send destinations. Split pairs select the most recent conversation and are logged; Public API contact resolution and blocking are unchanged. Patches panel options; supplied cards/nativeItems/fieldItems arrays replace their lists, omitted arrays and item attributes are preserved. topCards (false) requires detailsReadOnly. detailsCrmStage (show/hide) affects only Details. wrapValues (false) wraps long values. nativeItems accepts width (full/half) and hideWhenEmpty (false); fieldItems accepts fieldUuid, width and placement (body/header). Consecutive half fields pair at card width >=340px, with one column on narrow/mobile. Header links keep HTTPS validation and hide from the body. Does not grant field editing to access profiles."
+      ]
+    },
+    {
       "name": "create_custom_field",
       "category": "contacts",
       "summary": "Creates a custom field for contacts or conversations.",
@@ -1011,7 +1287,7 @@
     {
       "name": "update_flow",
       "category": "flows",
-      "summary": "Renames a flow or changes the channels it supports.",
+      "summary": "Renames a flow or changes channels, entries and its monitoringRule.",
       "scope": "flows:write",
       "requiresPlan": null,
       "mutates": false,
@@ -1111,6 +1387,55 @@
       "sideEffects": [
         "Reserves stock and runs the store automation, which messages the buyer.",
         "Prices always come from the catalog; they cannot be overridden."
+      ]
+    },
+    {
+      "name": "get_ai_summary_settings",
+      "category": "ai_agents",
+      "summary": "Read automatic internal summary settings.",
+      "scope": "ai_agents:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_ai_summary_costs",
+      "category": "ai_agents",
+      "summary": "Read daily costs and per-call usage for automatic summaries.",
+      "scope": "ai_agents:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_ai_summary_settings",
+      "category": "ai_agents",
+      "summary": "Configure automatic internal conversation summaries.",
+      "scope": "ai_agents:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "Enabling permits paid model calls, replacement of the configured conversation field (default) or internal notes (display=note), and conversation.ai_summary webhooks on future activity. No customer message is sent."
+      ]
+    },
+    {
+      "name": "get_entry_settings",
+      "category": "conversations",
+      "summary": "Read whether the company separates public and private entries.",
+      "scope": "entries:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "update_entry_settings",
+      "category": "conversations",
+      "summary": "Configure company entrySplit.",
+      "scope": "entries:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "public_private routes comment and mention to public conversations and the remaining entries to private conversations. Existing history is never backfilled or moved."
       ]
     }
   ]

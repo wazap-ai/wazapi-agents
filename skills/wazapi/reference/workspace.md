@@ -6,6 +6,9 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 - `get_session_context` — Identifies who you are acting as and which companies this connection covers.
 - `list_channels` — Lists the WhatsApp, Instagram and Messenger channels connected to the company.
+- `set_channel_retired` — Retires or un-retires a disconnected channel without deleting it.
+- `list_channel_events` — Reads channel state changes, actor, account send rejections/recovery and dropped inbound event metadata.
+- `get_group_distribution_report` — Read daily group receipts, presence and distribution queue waits.
 - `get_group` — Read group configuration and membership.
 - `create_group` — Create a support group and its CRM pipeline.
 - `update_group` — Patch a support group, its settings and its membership.
@@ -45,7 +48,78 @@ List the WhatsApp, Instagram, and Messenger channels connected to the active Waz
 
 _No arguments._
 
-- `status` tells you whether the channel is usable. A channel that is not `connected` will fail on send.
+- isRetired, retiredAt and retiredBy expose an administrator retirement; retired channels keep their conversations and can be un-retired with set_channel_retired. `status` tells you whether the channel is usable. A channel that is not `connected` will fail on send. statusChangedAt, statusReason and statusChangedBy expose the recorded transition; null means no recorded transition, not a guessed historical date.
+
+#### `set_channel_retired`
+
+Retires or un-retires a disconnected channel without deleting it.
+
+**Scope:** `whatsapp:write`
+
+**When to use.** Only after the administrator confirms a disconnected channel is no longer used. Discover its UUID with list_channels first.
+
+Mark a disconnected channel as retired or undo retirement. Hides its home alerts and notification emails, preserves the channel and conversations, and records the administrator and time. Reconnection automatically un-retires it.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `channelUuid` | uuid | yes | — |
+| `retired` | boolean | yes | — |
+
+**Side effects.**
+- Records the administrator and time. Retirement hides home banners and notification emails; conversations, credentials and connection state are preserved.
+
+- Requires whatsapp:write and channel administration permission. retired=true is allowed only while disconnected. retired=false restores the existing notice rules. Reconnection automatically un-retires. list_channels exposes isRetired, retiredAt and retiredBy.
+
+```json
+{
+  "channelUuid": "00000000-0000-4000-8000-000000000001",
+  "retired": true
+}
+```
+
+#### `list_channel_events`
+
+Reads channel state changes, actor, account send rejections/recovery and dropped inbound event metadata.
+
+**Scope:** `whatsapp:read`
+
+**When to use.** After list_channels indicates a disconnected or critical channel, to inspect the history without reconnecting.
+
+Read channel status history, account send rejections/recovery and dropped inbound metadata, without message text. Account alerts expire after 24 hours or a successful template acceptance; inbound metadata retained for 30 days.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `channelUuid` | uuid | yes | — |
+| `after` | string | no | — |
+| `limit` | integer | no | range 1–100 |
+| `kind` | `status_changed` \| `inbound_dropped` \| `account_rejected` \| `account_recovered` \| `retirement_changed` | no | — |
+
+- Requires whatsapp:read and channel administration permissions. No message text is stored or returned. Kinds: status_changed, inbound_dropped, account_rejected, account_recovered, retirement_changed. Retirement history is durable. Account causes: human disconnect only after typed-name confirmation; Meta permission withdrawal; system access expiry. Account rejections: 131042 payment/eligibility, 131031 locked, 368 policy, 131048 spam. Recipient codes 131026/131049/131050/130472 are excluded. One notice per rolling 24h per number/code; disappears 24h without rejection or after template acceptance (not delivery). list_channels.accountRejection exposes latest code/reason/time/expiry/active. Dropped event metadata is retained for 30 days. Use nextCursor as after. The count excludes echoes/status notices and deduplicates events with a provider id. Historical state before rollout may be unknown.
+
+```json
+{
+  "channelUuid": "00000000-0000-4000-8000-000000000001",
+  "kind": "inbound_dropped",
+  "limit": 50
+}
+```
+
+#### `get_group_distribution_report`
+
+Read daily group receipts, presence and distribution queue waits.
+
+**Scope:** `groups:read`
+
+**When to use.** Compare shifts by received conversations rather than current load. Read only; groupUuid is from list_groups; day is YYYY-MM-DD in company timezone.
+
+Read distinct daily receipts by person and origin, current open conversations, first observed online, queue arrivals and delivery waits. Day uses company timezone. Requires groups:read and dashboard.team or dashboard.company. History begins at feature installation.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `groupUuid` | uuid | yes | — |
+| `day` | string | no | — |
+
+- Requires groups:read and dashboard.team or dashboard.company. Counts once per conversation/person/group/day, using the first origin. Closing or transferring does not erase receipts. History starts at installation. Queue wait metrics use delivery day; arrival counts use arrival day; at most 1000 delivery details, with deliveries_truncated explicit.
 
 #### `get_group`
 
@@ -53,7 +127,7 @@ Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids and phoneNumbers.
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent).
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -78,8 +152,13 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 | `name` | string | yes | length 1–100 |
 | `memberUuids` | uuid[] | no | 0–1000 items |
 | `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
+| `queueWhenUnavailable` | boolean | no | — |
+| `distributionScheduleUuid` | uuid \| null | no | — |
+| `queueBatchPerAgent` | integer \| null | no | — |
 | `autoDistribute` | boolean | no | — |
 | `transferOnInactivity` | boolean | no | — |
+| `waitAlertMinutes` | integer \| null | no | — |
 | `inactivityTransferMinutes` | integer | no | range 1–43200 |
 | `limitConversationsPerUser` | boolean | no | — |
 | `maxConversationsPerUser` | integer | no | range 1–10000 |
@@ -114,8 +193,13 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 | `name` | string | no | length 1–100 |
 | `memberUuids` | uuid[] | no | 0–1000 items |
 | `supervisorUuids` | uuid[] | no | 0–1000 items |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
+| `queueWhenUnavailable` | boolean | no | — |
+| `distributionScheduleUuid` | uuid \| null | no | — |
+| `queueBatchPerAgent` | integer \| null | no | — |
 | `autoDistribute` | boolean | no | — |
 | `transferOnInactivity` | boolean | no | — |
+| `waitAlertMinutes` | integer \| null | no | — |
 | `inactivityTransferMinutes` | integer | no | range 1–43200 |
 | `limitConversationsPerUser` | boolean | no | — |
 | `maxConversationsPerUser` | integer | no | range 1–10000 |
@@ -135,6 +219,8 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+- Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries FIFO each minute in distributionScheduleUuid business hours. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
+- waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
 #### `get_agent`
 

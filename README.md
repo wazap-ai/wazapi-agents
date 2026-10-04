@@ -4,7 +4,7 @@ Este repositório publica a **skill do Wazapi**: o documento que ensina um agent
 um workspace Wazapi pelo servidor MCP — ler e responder conversas, cuidar de contatos e etiquetas,
 montar fluxos, tocar o CRM e a loja, e enviar templates aprovados pela Meta.
 
-Endpoint MCP: `https://wazapi.io/mcp` (Streamable HTTP) · versão do pacote: `1.9.0`
+Endpoint MCP: `https://wazapi.io/mcp` (Streamable HTTP) · versão do pacote: `1.20.0-org166.0`
 
 ## Instalação
 

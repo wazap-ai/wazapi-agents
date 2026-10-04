@@ -285,7 +285,7 @@ Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent).
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent, queueOpeningDelayMinutes, queueMaxPerAgent).
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -305,36 +305,39 @@ Create a support group and its CRM pipeline.
 
 Create a support group and its CRM pipeline. Requires explicit groups:write and settings.team. Select memberUuids and supervisorUuids from list_agents; at least one person is required.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `name` | string | yes | length 1–100 |
-| `memberUuids` | uuid[] | no | 0–1000 items |
-| `supervisorUuids` | uuid[] | no | 0–1000 items |
-| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
-| `queueWhenUnavailable` | boolean | no | — |
-| `distributionScheduleUuid` | uuid \| null | no | — |
-| `queueBatchPerAgent` | integer \| null | no | — |
-| `autoDistribute` | boolean | no | — |
-| `transferOnInactivity` | boolean | no | — |
-| `waitAlertMinutes` | integer \| null | no | — |
-| `inactivityTransferMinutes` | integer | no | range 1–43200 |
-| `limitConversationsPerUser` | boolean | no | — |
-| `maxConversationsPerUser` | integer | no | range 1–10000 |
-| `privateConversations` | boolean | no | — |
-| `membersCantSeeOthersAssigned` | boolean | no | — |
-| `restrictToPhoneNumbers` | boolean | no | — |
-| `phoneNumbers` | string[] | no | 0–1000 items |
-| `autoCloseOnContactInactivity` | boolean | no | — |
-| `contactInactivityMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningEnabled` | boolean | no | — |
-| `inactivityWarningMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningMessage` | string | no | length 0–1000 |
-| `respectBusinessHours` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | yes | length 1–100 | — |
+| `memberUuids` | uuid[] | no | 0–1000 items | — |
+| `supervisorUuids` | uuid[] | no | 0–1000 items | — |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
+| `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
+| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueWhenUnavailable` | boolean | no | — | — |
+| `distributionScheduleUuid` | uuid \| null | no | — | — |
+| `queueBatchPerAgent` | integer \| null | no | — | — |
+| `autoDistribute` | boolean | no | — | — |
+| `transferOnInactivity` | boolean | no | — | — |
+| `waitAlertMinutes` | integer \| null | no | — | — |
+| `inactivityTransferMinutes` | integer | no | range 1–43200 | — |
+| `limitConversationsPerUser` | boolean | no | — | — |
+| `maxConversationsPerUser` | integer | no | range 1–10000 | — |
+| `privateConversations` | boolean | no | — | — |
+| `membersCantSeeOthersAssigned` | boolean | no | — | — |
+| `restrictToPhoneNumbers` | boolean | no | — | — |
+| `phoneNumbers` | string[] | no | 0–1000 items | — |
+| `autoCloseOnContactInactivity` | boolean | no | — | — |
+| `contactInactivityMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningEnabled` | boolean | no | — | — |
+| `inactivityWarningMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningMessage` | string | no | length 0–1000 | — |
+| `respectBusinessHours` | boolean | no | — | — |
 
 **Side effects.**
 - Creates the group and CRM pipeline, saves membership and audits the change. Membership affects access and conversation distribution.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+- Queue opening delay defaults to 15 minutes after each distribution schedule opening; 0 disables the delay and no schedule means no wait. queueMaxPerAgent defaults to null. Read the requested company and obtain explicit approval before choosing operational queue settings.
 
 #### `update_group`
 
@@ -346,38 +349,41 @@ Patch a support group, its settings and its membership.
 
 Patch group configuration and membership. Omitted fields are preserved; supplied arrays replace their lists. Removing members clears their CRM assignments in this group. Requires explicit groups:write and settings.team.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `name` | string | no | length 1–100 |
-| `memberUuids` | uuid[] | no | 0–1000 items |
-| `supervisorUuids` | uuid[] | no | 0–1000 items |
-| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
-| `queueWhenUnavailable` | boolean | no | — |
-| `distributionScheduleUuid` | uuid \| null | no | — |
-| `queueBatchPerAgent` | integer \| null | no | — |
-| `autoDistribute` | boolean | no | — |
-| `transferOnInactivity` | boolean | no | — |
-| `waitAlertMinutes` | integer \| null | no | — |
-| `inactivityTransferMinutes` | integer | no | range 1–43200 |
-| `limitConversationsPerUser` | boolean | no | — |
-| `maxConversationsPerUser` | integer | no | range 1–10000 |
-| `privateConversations` | boolean | no | — |
-| `membersCantSeeOthersAssigned` | boolean | no | — |
-| `restrictToPhoneNumbers` | boolean | no | — |
-| `phoneNumbers` | string[] | no | 0–1000 items |
-| `autoCloseOnContactInactivity` | boolean | no | — |
-| `contactInactivityMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningEnabled` | boolean | no | — |
-| `inactivityWarningMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningMessage` | string | no | length 0–1000 |
-| `respectBusinessHours` | boolean | no | — |
-| `groupUuid` | uuid | yes | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | no | length 1–100 | — |
+| `memberUuids` | uuid[] | no | 0–1000 items | — |
+| `supervisorUuids` | uuid[] | no | 0–1000 items | — |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
+| `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
+| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueWhenUnavailable` | boolean | no | — | — |
+| `distributionScheduleUuid` | uuid \| null | no | — | — |
+| `queueBatchPerAgent` | integer \| null | no | — | — |
+| `autoDistribute` | boolean | no | — | — |
+| `transferOnInactivity` | boolean | no | — | — |
+| `waitAlertMinutes` | integer \| null | no | — | — |
+| `inactivityTransferMinutes` | integer | no | range 1–43200 | — |
+| `limitConversationsPerUser` | boolean | no | — | — |
+| `maxConversationsPerUser` | integer | no | range 1–10000 | — |
+| `privateConversations` | boolean | no | — | — |
+| `membersCantSeeOthersAssigned` | boolean | no | — | — |
+| `restrictToPhoneNumbers` | boolean | no | — | — |
+| `phoneNumbers` | string[] | no | 0–1000 items | — |
+| `autoCloseOnContactInactivity` | boolean | no | — | — |
+| `contactInactivityMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningEnabled` | boolean | no | — | — |
+| `inactivityWarningMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningMessage` | string | no | length 0–1000 | — |
+| `respectBusinessHours` | boolean | no | — | — |
+| `groupUuid` | uuid | yes | — | — |
 
 **Side effects.**
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
 - Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries FIFO each minute in distributionScheduleUuid business hours. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
+- Accumulated queue rounds rotate eligible members while respecting balanced_daily. queueBatchPerAgent caps both the minute batch and still-active queue deliveries awaiting the first successful human reply; a new minute does not reset that pending capacity. queueOpeningDelayMinutes defaults to 15 after each scheduled opening (0 disables; without a schedule no wait). queueMaxPerAgent caps active queue conversations per person, including answered ones; null clears that separate ceiling. Omitted fields remain unchanged. Operational changes require explicit human authorization.
 - waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
 #### `get_agent`
@@ -3464,7 +3470,7 @@ Test AI agent
 
 **When to use.** Preview one paid AI turn without saving instructions, links or conversation data. Works for active and inactive agents.
 
-Run one paid, simulated AI turn for an active or inactive agent. No conversation, message, field, CRM, cart or order is changed. Optional instructions, knowledge sources and clock apply only to this call. Requires explicit ai_agents:write and settings.general. Uses company BYOK, budget and a separate 10/min company limit; usage and metadata-only audit are recorded.
+Run one paid, simulated AI turn for an active or inactive agent. No conversation, message, field, CRM, cart or order is changed. Optional instructions, knowledge sources and clock apply only to this call. Requires explicit ai_agents:write and settings.general. Uses company BYOK, budget and a separate 10/min company limit. Returns status and companyQueryCalls with sanitized categorical arguments, HTTP status, error code and individual durationMs; the same trace is audited. Failed turns return partial usage and query trace.
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
@@ -3484,6 +3490,7 @@ Run one paid, simulated AI turn for an active or inactive agent. No conversation
 - messages uses role and content and ends in a user message. nowOverride requires ISO 8601 with timezone and only changes the model context, never budgets, audits or rate limits.
 - Omitted sources use the agent links; an empty override disables retrieval. Historical clock does not rewind knowledge sources or reproduce CRM/P2 fields.
 - Actions and toolTrace are simulated proposals, never proof of a sent message or executed action.
+- status=completed or failed. companyQueryCalls appears in the result and audit with queryUuid/name, sanitized args, completed/failed status, httpStatus, durationMs and errorCode. Only configured categorical enum arguments are retained; free text, personal/credential parameters and unrecognized keys are redacted. Query responses are omitted from toolTrace. A failed turn keeps partial usage and query trace; it is not a successful model test.
 
 #### `preview_ai_summary`
 
@@ -3494,7 +3501,7 @@ Preview a conversation summary without changing fields or creating notes or webh
 
 **When to use.** Only when a human explicitly requests a paid summary test.
 
-Paid summary preview with exact input and usage. No note, webhook, cursor, summary request or summary call is written. Historical summaryUuid freezes the window and annotation clock. Counts against the company daily summary budget, even when automation is off.
+Paid summary preview with exact input, previewUuid, status, usage and cost. Persists a separate preview ledger including failed calls and specific safe format reasons, never the rejected text. No note, webhook, automatic cursor, summary request or automatic summary call is written. Historical summaryUuid freezes the window and annotation clock. Counts against the company daily summary budget, even when automation is off. costKnown=false means a displayed zero is unknown consumption, with a conservative reservation and no retry.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -3507,6 +3514,7 @@ Paid summary preview with exact input and usage. No note, webhook, cursor, summa
 - Calls the company model and charges summary daily budget and AI usage with source summary_preview.
 
 - Requires the same sensitive ai_agents:write and settings.general permission as test_ai_agent. Works with summary automation off. Historical summaryUuid uses its original window and excludes later annotations. Empty lines mean no novelty. Instructions override is local to this call, at most 4000 characters.
+- Accepts one to maxLines useful lines. Returns previewUuid and completed/skipped/failed/uncertain status. Rejected outputs retain usage, estimated actual cost and specific shape-only failureDiagnostic; raw rejected text is never persisted. Unknown consumption returns zero with costKnown=false and zeroCostReason=provider_outcome_unknown, retaining reservedUsdMicros; this is not proof of a free call. No automatic retry.
 
 #### `update_ai_agent`
 
@@ -3582,17 +3590,18 @@ _No arguments._
 
 #### `get_ai_summary_costs`
 
-Read daily costs and per-call usage for automatic summaries.
+Read automatic and preview summary costs, including failed calls.
 
 **Scope:** `ai_agents:read`
 
-**When to use.** To inspect the last 30 days and the latest 100 calls in this company.
+**When to use.** To inspect separate 30-day totals and latest 100 calls/previews in this company.
 
-Read daily AI summary costs and the latest 100 calls for this company.
+Read daily automatic and preview summary costs, including failed calls, with separate latest 100 calls/previews, usage and reasons. Unknown consumption has cost_known=false and zero_cost_reason, with reservations separate. previewBudgetDays includes legacy aggregates and reservations; never add it to previewDays.
 
 _No arguments._
 
 - Costs are estimated from provider usage and the catalog, in USD micros. Unknown outcomes retain a conservative reservation, shown separately.
+- calls/days are automatic; previews/previewDays are manual tests, each with its own UUID and optional historical_summary_uuid. Failed calls expose error_reason and safe failure_diagnostic. cost_known=false and zero_cost_reason distinguish unknown charges from actual zero. previewBudgetDays contains aggregate budget usage including legacy tests and unknown reservations: never add it to previewDays. Historical per-test usage was not recorded and cannot be reconstructed.
 
 #### `update_ai_summary_settings`
 

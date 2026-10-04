@@ -23,7 +23,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `preview_ai_summary` — Preview a conversation summary without changing fields or creating notes or webhooks.
 - `update_ai_agent` — Update AI agent
 - `get_ai_summary_settings` — Read automatic internal summary settings.
-- `get_ai_summary_costs` — Read daily costs and per-call usage for automatic summaries.
+- `get_ai_summary_costs` — Read automatic and preview summary costs, including failed calls.
 - `update_ai_summary_settings` — Configure automatic internal conversation summaries.
 
 #### `list_company_queries`
@@ -379,7 +379,7 @@ Test AI agent
 
 **When to use.** Preview one paid AI turn without saving instructions, links or conversation data. Works for active and inactive agents.
 
-Run one paid, simulated AI turn for an active or inactive agent. No conversation, message, field, CRM, cart or order is changed. Optional instructions, knowledge sources and clock apply only to this call. Requires explicit ai_agents:write and settings.general. Uses company BYOK, budget and a separate 10/min company limit; usage and metadata-only audit are recorded.
+Run one paid, simulated AI turn for an active or inactive agent. No conversation, message, field, CRM, cart or order is changed. Optional instructions, knowledge sources and clock apply only to this call. Requires explicit ai_agents:write and settings.general. Uses company BYOK, budget and a separate 10/min company limit. Returns status and companyQueryCalls with sanitized categorical arguments, HTTP status, error code and individual durationMs; the same trace is audited. Failed turns return partial usage and query trace.
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
@@ -399,6 +399,7 @@ Run one paid, simulated AI turn for an active or inactive agent. No conversation
 - messages uses role and content and ends in a user message. nowOverride requires ISO 8601 with timezone and only changes the model context, never budgets, audits or rate limits.
 - Omitted sources use the agent links; an empty override disables retrieval. Historical clock does not rewind knowledge sources or reproduce CRM/P2 fields.
 - Actions and toolTrace are simulated proposals, never proof of a sent message or executed action.
+- status=completed or failed. companyQueryCalls appears in the result and audit with queryUuid/name, sanitized args, completed/failed status, httpStatus, durationMs and errorCode. Only configured categorical enum arguments are retained; free text, personal/credential parameters and unrecognized keys are redacted. Query responses are omitted from toolTrace. A failed turn keeps partial usage and query trace; it is not a successful model test.
 
 #### `preview_ai_summary`
 
@@ -409,7 +410,7 @@ Preview a conversation summary without changing fields or creating notes or webh
 
 **When to use.** Only when a human explicitly requests a paid summary test.
 
-Paid summary preview with exact input and usage. No note, webhook, cursor, summary request or summary call is written. Historical summaryUuid freezes the window and annotation clock. Counts against the company daily summary budget, even when automation is off.
+Paid summary preview with exact input, previewUuid, status, usage and cost. Persists a separate preview ledger including failed calls and specific safe format reasons, never the rejected text. No note, webhook, automatic cursor, summary request or automatic summary call is written. Historical summaryUuid freezes the window and annotation clock. Counts against the company daily summary budget, even when automation is off. costKnown=false means a displayed zero is unknown consumption, with a conservative reservation and no retry.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -422,6 +423,7 @@ Paid summary preview with exact input and usage. No note, webhook, cursor, summa
 - Calls the company model and charges summary daily budget and AI usage with source summary_preview.
 
 - Requires the same sensitive ai_agents:write and settings.general permission as test_ai_agent. Works with summary automation off. Historical summaryUuid uses its original window and excludes later annotations. Empty lines mean no novelty. Instructions override is local to this call, at most 4000 characters.
+- Accepts one to maxLines useful lines. Returns previewUuid and completed/skipped/failed/uncertain status. Rejected outputs retain usage, estimated actual cost and specific shape-only failureDiagnostic; raw rejected text is never persisted. Unknown consumption returns zero with costKnown=false and zeroCostReason=provider_outcome_unknown, retaining reservedUsdMicros; this is not proof of a free call. No automatic retry.
 
 #### `update_ai_agent`
 
@@ -497,17 +499,18 @@ _No arguments._
 
 #### `get_ai_summary_costs`
 
-Read daily costs and per-call usage for automatic summaries.
+Read automatic and preview summary costs, including failed calls.
 
 **Scope:** `ai_agents:read`
 
-**When to use.** To inspect the last 30 days and the latest 100 calls in this company.
+**When to use.** To inspect separate 30-day totals and latest 100 calls/previews in this company.
 
-Read daily AI summary costs and the latest 100 calls for this company.
+Read daily automatic and preview summary costs, including failed calls, with separate latest 100 calls/previews, usage and reasons. Unknown consumption has cost_known=false and zero_cost_reason, with reservations separate. previewBudgetDays includes legacy aggregates and reservations; never add it to previewDays.
 
 _No arguments._
 
 - Costs are estimated from provider usage and the catalog, in USD micros. Unknown outcomes retain a conservative reservation, shown separately.
+- calls/days are automatic; previews/previewDays are manual tests, each with its own UUID and optional historical_summary_uuid. Failed calls expose error_reason and safe failure_diagnostic. cost_known=false and zero_cost_reason distinguish unknown charges from actual zero. previewBudgetDays contains aggregate budget usage including legacy tests and unknown reservations: never add it to previewDays. Historical per-test usage was not recorded and cannot be reconstructed.
 
 #### `update_ai_summary_settings`
 

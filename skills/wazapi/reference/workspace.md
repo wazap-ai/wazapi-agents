@@ -127,7 +127,7 @@ Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent).
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent, queueOpeningDelayMinutes, queueMaxPerAgent).
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -147,36 +147,39 @@ Create a support group and its CRM pipeline.
 
 Create a support group and its CRM pipeline. Requires explicit groups:write and settings.team. Select memberUuids and supervisorUuids from list_agents; at least one person is required.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `name` | string | yes | length 1–100 |
-| `memberUuids` | uuid[] | no | 0–1000 items |
-| `supervisorUuids` | uuid[] | no | 0–1000 items |
-| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
-| `queueWhenUnavailable` | boolean | no | — |
-| `distributionScheduleUuid` | uuid \| null | no | — |
-| `queueBatchPerAgent` | integer \| null | no | — |
-| `autoDistribute` | boolean | no | — |
-| `transferOnInactivity` | boolean | no | — |
-| `waitAlertMinutes` | integer \| null | no | — |
-| `inactivityTransferMinutes` | integer | no | range 1–43200 |
-| `limitConversationsPerUser` | boolean | no | — |
-| `maxConversationsPerUser` | integer | no | range 1–10000 |
-| `privateConversations` | boolean | no | — |
-| `membersCantSeeOthersAssigned` | boolean | no | — |
-| `restrictToPhoneNumbers` | boolean | no | — |
-| `phoneNumbers` | string[] | no | 0–1000 items |
-| `autoCloseOnContactInactivity` | boolean | no | — |
-| `contactInactivityMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningEnabled` | boolean | no | — |
-| `inactivityWarningMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningMessage` | string | no | length 0–1000 |
-| `respectBusinessHours` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | yes | length 1–100 | — |
+| `memberUuids` | uuid[] | no | 0–1000 items | — |
+| `supervisorUuids` | uuid[] | no | 0–1000 items | — |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
+| `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
+| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueWhenUnavailable` | boolean | no | — | — |
+| `distributionScheduleUuid` | uuid \| null | no | — | — |
+| `queueBatchPerAgent` | integer \| null | no | — | — |
+| `autoDistribute` | boolean | no | — | — |
+| `transferOnInactivity` | boolean | no | — | — |
+| `waitAlertMinutes` | integer \| null | no | — | — |
+| `inactivityTransferMinutes` | integer | no | range 1–43200 | — |
+| `limitConversationsPerUser` | boolean | no | — | — |
+| `maxConversationsPerUser` | integer | no | range 1–10000 | — |
+| `privateConversations` | boolean | no | — | — |
+| `membersCantSeeOthersAssigned` | boolean | no | — | — |
+| `restrictToPhoneNumbers` | boolean | no | — | — |
+| `phoneNumbers` | string[] | no | 0–1000 items | — |
+| `autoCloseOnContactInactivity` | boolean | no | — | — |
+| `contactInactivityMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningEnabled` | boolean | no | — | — |
+| `inactivityWarningMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningMessage` | string | no | length 0–1000 | — |
+| `respectBusinessHours` | boolean | no | — | — |
 
 **Side effects.**
 - Creates the group and CRM pipeline, saves membership and audits the change. Membership affects access and conversation distribution.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
+- Queue opening delay defaults to 15 minutes after each distribution schedule opening; 0 disables the delay and no schedule means no wait. queueMaxPerAgent defaults to null. Read the requested company and obtain explicit approval before choosing operational queue settings.
 
 #### `update_group`
 
@@ -188,38 +191,41 @@ Patch a support group, its settings and its membership.
 
 Patch group configuration and membership. Omitted fields are preserved; supplied arrays replace their lists. Removing members clears their CRM assignments in this group. Requires explicit groups:write and settings.team.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `name` | string | no | length 1–100 |
-| `memberUuids` | uuid[] | no | 0–1000 items |
-| `supervisorUuids` | uuid[] | no | 0–1000 items |
-| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — |
-| `queueWhenUnavailable` | boolean | no | — |
-| `distributionScheduleUuid` | uuid \| null | no | — |
-| `queueBatchPerAgent` | integer \| null | no | — |
-| `autoDistribute` | boolean | no | — |
-| `transferOnInactivity` | boolean | no | — |
-| `waitAlertMinutes` | integer \| null | no | — |
-| `inactivityTransferMinutes` | integer | no | range 1–43200 |
-| `limitConversationsPerUser` | boolean | no | — |
-| `maxConversationsPerUser` | integer | no | range 1–10000 |
-| `privateConversations` | boolean | no | — |
-| `membersCantSeeOthersAssigned` | boolean | no | — |
-| `restrictToPhoneNumbers` | boolean | no | — |
-| `phoneNumbers` | string[] | no | 0–1000 items |
-| `autoCloseOnContactInactivity` | boolean | no | — |
-| `contactInactivityMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningEnabled` | boolean | no | — |
-| `inactivityWarningMinutes` | integer | no | range 1–43200 |
-| `inactivityWarningMessage` | string | no | length 0–1000 |
-| `respectBusinessHours` | boolean | no | — |
-| `groupUuid` | uuid | yes | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | no | length 1–100 | — |
+| `memberUuids` | uuid[] | no | 0–1000 items | — |
+| `supervisorUuids` | uuid[] | no | 0–1000 items | — |
+| `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
+| `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
+| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueWhenUnavailable` | boolean | no | — | — |
+| `distributionScheduleUuid` | uuid \| null | no | — | — |
+| `queueBatchPerAgent` | integer \| null | no | — | — |
+| `autoDistribute` | boolean | no | — | — |
+| `transferOnInactivity` | boolean | no | — | — |
+| `waitAlertMinutes` | integer \| null | no | — | — |
+| `inactivityTransferMinutes` | integer | no | range 1–43200 | — |
+| `limitConversationsPerUser` | boolean | no | — | — |
+| `maxConversationsPerUser` | integer | no | range 1–10000 | — |
+| `privateConversations` | boolean | no | — | — |
+| `membersCantSeeOthersAssigned` | boolean | no | — | — |
+| `restrictToPhoneNumbers` | boolean | no | — | — |
+| `phoneNumbers` | string[] | no | 0–1000 items | — |
+| `autoCloseOnContactInactivity` | boolean | no | — | — |
+| `contactInactivityMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningEnabled` | boolean | no | — | — |
+| `inactivityWarningMinutes` | integer | no | range 1–43200 | — |
+| `inactivityWarningMessage` | string | no | length 0–1000 | — |
+| `respectBusinessHours` | boolean | no | — | — |
+| `groupUuid` | uuid | yes | — | — |
 
 **Side effects.**
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
 - Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries FIFO each minute in distributionScheduleUuid business hours. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
+- Accumulated queue rounds rotate eligible members while respecting balanced_daily. queueBatchPerAgent caps both the minute batch and still-active queue deliveries awaiting the first successful human reply; a new minute does not reset that pending capacity. queueOpeningDelayMinutes defaults to 15 after each scheduled opening (0 disables; without a schedule no wait). queueMaxPerAgent caps active queue conversations per person, including answered ones; null clears that separate ceiling. Omitted fields remain unchanged. Operational changes require explicit human authorization.
 - waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
 #### `get_agent`

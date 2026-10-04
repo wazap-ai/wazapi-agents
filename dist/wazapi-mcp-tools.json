@@ -1419,7 +1419,7 @@
     {
       "name": "get_ai_summary_costs",
       "category": "ai_agents",
-      "summary": "Read daily costs and per-call usage for automatic summaries.",
+      "summary": "Read automatic and preview summary costs, including failed calls.",
       "scope": "ai_agents:read",
       "requiresPlan": null,
       "mutates": false,

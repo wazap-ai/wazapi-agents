@@ -1661,7 +1661,7 @@ Create a new draft chatbot flow in the authenticated Wazapi company
 
 - supportedEntries is a per-provider map. Empty lists allow all; default comment flows require comment explicitly. WhatsApp/Messenger only accept direct and ad.
 - The flow starts as `draft` and does not run until `update_flow_status` activates it.
-- `supportedProviders` is fixed at creation and constrains which blocks the graph may use.
+- `supportedProviders` is fixed at creation and constrains which blocks the graph may use. Omitted, it defaults to the channels the company has connected (WhatsApp when none).
 
 ```json
 {
@@ -1807,7 +1807,7 @@ Starts an active flow for one contact right now, without waiting for a keyword.
 
 **When to use.** To put a specific contact into a specific flow — onboarding after signup, a guided recovery, a flow the customer would otherwise have to type a keyword to reach.
 
-Start an active WhatsApp flow for a contact immediately, without waiting for a keyword. Address it with one of conversationUuid, contactUuid or phone; contactUuid and phone open a conversation when none exists. Values passed in variables are readable inside the flow as {{vars.name}}. Reuse idempotencyKey on retries to avoid starting twice; omitting it creates a new execution. Returns flowStatus "active" when the flow is parked waiting for the contact to reply.
+Start an active flow for a contact immediately, without waiting for a keyword. Address it with one of conversationUuid, contactUuid or phone; contactUuid and phone open a WhatsApp conversation when none exists, while conversationUuid also reaches Instagram and Messenger conversations (the flow must list that channel). Values passed in variables are readable inside the flow as {{vars.name}}. Reuse idempotencyKey on retries to avoid starting twice; omitting it creates a new execution. Returns flowStatus "active" when the flow is parked waiting for the contact to reply.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -1823,7 +1823,7 @@ Start an active WhatsApp flow for a contact immediately, without waiting for a k
 - Any flow session the contact already had is marked `superseded`.
 - Writes a `flow.executed` audit entry.
 
-- Address it with exactly one of `conversationUuid`, `contactUuid` or `phone`. The last two open a conversation when none exists, and `phone` also creates the contact.
+- Address it with exactly one of `conversationUuid`, `contactUuid` or `phone`. The last two open a WhatsApp conversation when none exists, and `phone` also creates the contact. Instagram and Messenger conversations are reached only through `conversationUuid`, and the flow must list that channel in `supportedProviders`.
 - The flow must be `active`; a draft is refused. Use `update_flow_status` first.
 - If the flow opens with a free-form block (`send_text`, `send_buttons`, …) and the 24h WhatsApp window is closed, the call is refused rather than half-running. Send an approved template first with `send_template_message`, or build the flow to open with `send_template`.
 - `variables` land in the session and read as `{{vars.name}}` inside the graph.
@@ -3420,7 +3420,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `name` | string | yes | length 1–120 | — |
 | `instructions` | string | yes | length 1–20000 | — |
 | `description` | string \| null | no | — | — |
-| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
+| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
 | `maxTokens` | integer | no | range 1–1500 | — |
 | `language` | `pt-BR` \| `en` \| `es` | no | — | — |
@@ -3533,7 +3533,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `name` | string | no | length 1–120 | — |
 | `instructions` | string | no | length 1–20000 | — |
 | `description` | string \| null | no | — | — |
-| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
+| `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
 | `maxTokens` | integer | no | range 1–1500 | — |
 | `language` | `pt-BR` \| `en` \| `es` | no | — | — |

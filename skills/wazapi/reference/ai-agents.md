@@ -331,6 +331,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
+| `effort` | `low` \| `medium` \| `high` | no | — | Reasoning effort, only for Claude 5.x models (ignored otherwise). Higher is slower and costlier; a turn over 15s drops that conversation to low. |
 | `maxTokens` | integer | no | range 1–1500 | — |
 | `language` | `pt-BR` \| `en` \| `es` | no | — | — |
 | `tone` | `friendly` \| `formal` \| `concise` \| `playful` | no | — | — |
@@ -444,6 +445,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
+| `effort` | `low` \| `medium` \| `high` | no | — | Reasoning effort, only for Claude 5.x models (ignored otherwise). Higher is slower and costlier; a turn over 15s drops that conversation to low. |
 | `maxTokens` | integer | no | range 1–1500 | — |
 | `language` | `pt-BR` \| `en` \| `es` | no | — | — |
 | `tone` | `friendly` \| `formal` \| `concise` \| `playful` | no | — | — |

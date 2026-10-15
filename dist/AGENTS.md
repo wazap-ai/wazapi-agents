@@ -285,7 +285,7 @@ Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent, queueOpeningDelayMinutes, queueMaxPerAgent).
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent, queueOpeningDelayMinutes, queueMaxPerAgent, queueOpenWindowFirst).
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -314,6 +314,7 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 | `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
 | `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
 | `queueWhenUnavailable` | boolean | no | — | — |
+| `queueOpenWindowFirst` | boolean | no | — | — |
 | `distributionScheduleUuid` | uuid \| null | no | — | — |
 | `queueBatchPerAgent` | integer \| null | no | — | — |
 | `autoDistribute` | boolean | no | — | — |
@@ -337,7 +338,7 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 - Creates the group and CRM pipeline, saves membership and audits the change. Membership affects access and conversation distribution.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
-- Queue opening delay defaults to 15 minutes after each distribution schedule opening; 0 disables the delay and no schedule means no wait. queueMaxPerAgent defaults to null. Read the requested company and obtain explicit approval before choosing operational queue settings.
+- Queue opening delay defaults to 15 minutes after each distribution schedule opening; 0 disables the delay and no schedule means no wait. queueMaxPerAgent defaults to null. queueOpenWindowFirst defaults to true (open 24-hour inbound windows first); false retains FIFO. Read the requested company and obtain explicit approval before choosing operational queue settings.
 
 #### `update_group`
 
@@ -358,6 +359,7 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 | `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
 | `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
 | `queueWhenUnavailable` | boolean | no | — | — |
+| `queueOpenWindowFirst` | boolean | no | — | — |
 | `distributionScheduleUuid` | uuid \| null | no | — | — |
 | `queueBatchPerAgent` | integer \| null | no | — | — |
 | `autoDistribute` | boolean | no | — | — |
@@ -382,7 +384,7 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
-- Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries FIFO each minute in distributionScheduleUuid business hours. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
+- Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries each minute in distributionScheduleUuid business hours. queueOpenWindowFirst defaults to true: open 24-hour inbound windows first, FIFO within each block; false retains FIFO. Window is per conversation, by provider_timestamp with created_at fallback, computed once per round. Closed windows remain eligible when no open window waits, without an age cap; continuous open arrivals can defer them. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
 - Accumulated queue rounds rotate eligible members while respecting balanced_daily. queueBatchPerAgent caps both the minute batch and still-active queue deliveries awaiting the first successful human reply; a new minute does not reset that pending capacity. queueOpeningDelayMinutes defaults to 15 after each scheduled opening (0 disables; without a schedule no wait). queueMaxPerAgent caps active queue conversations per person, including answered ones; null clears that separate ceiling. Omitted fields remain unchanged. Operational changes require explicit human authorization.
 - waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
@@ -1651,7 +1653,8 @@ Create a new draft chatbot flow in the authenticated Wazapi company
 | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 |
 | `supportedEntries` | object | no | — |
-| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger` \| `webchat`[] | no | 1–4 items |
+| `supportedEntries.webchat` | `direct`[] | no | — |
 | `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
 | `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
 | `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
@@ -1659,9 +1662,9 @@ Create a new draft chatbot flow in the authenticated Wazapi company
 **Side effects.**
 - Writes a `flow.created` audit entry.
 
-- supportedEntries is a per-provider map. Empty lists allow all; default comment flows require comment explicitly. WhatsApp/Messenger only accept direct and ad.
+- supportedEntries is a per-provider map. Empty lists allow all; default comment flows require comment explicitly. WhatsApp/Messenger accept direct and ad; webchat accepts direct only.
 - The flow starts as `draft` and does not run until `update_flow_status` activates it.
-- `supportedProviders` is fixed at creation and constrains which blocks the graph may use. Omitted, it defaults to the channels the company has connected (WhatsApp when none).
+- `supportedProviders` accepts up to four channels (whatsapp, instagram, messenger, webchat) and constrains the graph. Omitted, it defaults to connected channels (WhatsApp when none). Change it with update_flow. Chat paths reject unsupported blocks; widget configuration is outside MCP.
 
 ```json
 {
@@ -2077,18 +2080,20 @@ Rename a flow, change channels/entries or its monitoringRule. Default inherits t
 | `name` | string | no | length 1–120 |
 | `monitoringRule` | object | no | — |
 | `supportedEntries` | object | no | — |
-| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger` \| `webchat`[] | no | 1–4 items |
 | `monitoringRule.mode` | `default` \| `disabled` \| `start_flow` \| `assign_group` | yes | — |
 | `monitoringRule.minutes` | integer | no | range 1–10080 |
 | `monitoringRule.flowUuid` | uuid \| null | no | — |
 | `monitoringRule.groupUuid` | uuid \| null | no | — |
 | `monitoringRule.fallbackGroupUuid` | uuid \| null | no | — |
+| `supportedEntries.webchat` | `direct`[] | no | — |
 | `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
 | `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
 | `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
 
 - monitoringRule omitted preserves it; default clears the own rule; disabled stops monitoring here and in descendants inheriting it. start_flow/assign_group require minutes and flowUuid/groupUuid; reserve inherits company when empty. Own rules work with company default off. Live rule edits require explicit user authorization.
 - supportedEntries replaces the per-provider map. Empty lists allow all; default comments require explicit selection. Changing this filter also restricts subsequent inbound resumes.
+- supportedProviders accepts up to four channels, including webchat. Chat only accepts the direct entry and compatible blocks. Widget origins, credentials and public knowledge policy are configured in the panel, not through this tool.
 
 #### `delete_flow`
 

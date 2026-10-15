@@ -140,7 +140,8 @@ Create a new draft chatbot flow in the authenticated Wazapi company
 | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 |
 | `supportedEntries` | object | no | — |
-| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger` \| `webchat`[] | no | 1–4 items |
+| `supportedEntries.webchat` | `direct`[] | no | — |
 | `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
 | `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
 | `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
@@ -148,9 +149,9 @@ Create a new draft chatbot flow in the authenticated Wazapi company
 **Side effects.**
 - Writes a `flow.created` audit entry.
 
-- supportedEntries is a per-provider map. Empty lists allow all; default comment flows require comment explicitly. WhatsApp/Messenger only accept direct and ad.
+- supportedEntries is a per-provider map. Empty lists allow all; default comment flows require comment explicitly. WhatsApp/Messenger accept direct and ad; webchat accepts direct only.
 - The flow starts as `draft` and does not run until `update_flow_status` activates it.
-- `supportedProviders` is fixed at creation and constrains which blocks the graph may use. Omitted, it defaults to the channels the company has connected (WhatsApp when none).
+- `supportedProviders` accepts up to four channels (whatsapp, instagram, messenger, webchat) and constrains the graph. Omitted, it defaults to connected channels (WhatsApp when none). Change it with update_flow. Chat paths reject unsupported blocks; widget configuration is outside MCP.
 
 ```json
 {
@@ -566,18 +567,20 @@ Rename a flow, change channels/entries or its monitoringRule. Default inherits t
 | `name` | string | no | length 1–120 |
 | `monitoringRule` | object | no | — |
 | `supportedEntries` | object | no | — |
-| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger`[] | no | 1–3 items |
+| `supportedProviders` | `whatsapp` \| `instagram` \| `messenger` \| `webchat`[] | no | 1–4 items |
 | `monitoringRule.mode` | `default` \| `disabled` \| `start_flow` \| `assign_group` | yes | — |
 | `monitoringRule.minutes` | integer | no | range 1–10080 |
 | `monitoringRule.flowUuid` | uuid \| null | no | — |
 | `monitoringRule.groupUuid` | uuid \| null | no | — |
 | `monitoringRule.fallbackGroupUuid` | uuid \| null | no | — |
+| `supportedEntries.webchat` | `direct`[] | no | — |
 | `supportedEntries.whatsapp` | `direct` \| `ad`[] | no | — |
 | `supportedEntries.instagram` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
 | `supportedEntries.messenger` | `direct` \| `ad`[] | no | — |
 
 - monitoringRule omitted preserves it; default clears the own rule; disabled stops monitoring here and in descendants inheriting it. start_flow/assign_group require minutes and flowUuid/groupUuid; reserve inherits company when empty. Own rules work with company default off. Live rule edits require explicit user authorization.
 - supportedEntries replaces the per-provider map. Empty lists allow all; default comments require explicit selection. Changing this filter also restricts subsequent inbound resumes.
+- supportedProviders accepts up to four channels, including webchat. Chat only accepts the direct entry and compatible blocks. Widget origins, credentials and public knowledge policy are configured in the panel, not through this tool.
 
 #### `delete_flow`
 

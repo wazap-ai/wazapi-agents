@@ -1050,7 +1050,7 @@ Sends an approved Meta template, opening the conversation if needed.
 
 **When to use.** To reach someone outside the 24h window — including a contact who has never written. This is the transactional-notification path.
 
-Send a Meta approved template message. Address it with exactly one of conversationUuid, contactUuid or phone — templates exist precisely to reach people outside the 24h window, so contactUuid and phone open the conversation when none exists yet. For UTILITY/AUTHENTICATION templates, phone also creates the contact; MARKETING templates require an existing contact (with opt-in) and are subject to the company send policy, opt-outs and frequency caps — a blocked send returns the blocking reason. Body variables are filled positionally from the parameters array.
+Send a Meta approved template message. Address it with exactly one of conversationUuid, contactUuid or phone — templates exist precisely to reach people outside the 24h window, so contactUuid and phone open the conversation when none exists yet. For UTILITY/AUTHENTICATION templates, phone also creates the contact; MARKETING templates require an existing contact (with opt-in) and are subject to the company send policy, opt-outs and frequency caps — a blocked send returns the blocking reason. Body variables are filled positionally from the parameters array; a copy-code button takes its coupon and a URL button ending in {{1}} its suffix in buttons ({ index, coupon_code | url_suffix }, index as in the template). A media header takes headerMediaUuid (media library file); a carousel takes cards, one per card in order, each with mediaUuid and its parameters/buttons; a limited-time offer with a countdown takes limitedTimeOffer.expirationTimeMs (future Unix ms, within a year). Library media needs the messages:media scope and the files permission, as send_media_message.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -1061,6 +1061,17 @@ Send a Meta approved template message. Address it with exactly one of conversati
 | `templateName` | string | yes | length 1–∞ |
 | `languageCode` | string | no | — |
 | `parameters` | string[] | no | — |
+| `buttons` | object[] | no | 0–10 items |
+| `headerMediaUuid` | uuid | no | — |
+| `cards` | object[] | no | 0–10 items |
+| `limitedTimeOffer` | object | no | — |
+| `buttons[].index` | integer | yes | range 0–9 |
+| `buttons[].coupon_code` | string | no | — |
+| `buttons[].url_suffix` | string | no | length 1–2000 |
+| `cards[].mediaUuid` | uuid | yes | — |
+| `cards[].parameters` | string[] | no | 0–20 items |
+| `cards[].buttons` | object[] | no | 0–2 items |
+| `limitedTimeOffer.expirationTimeMs` | integer | yes | — |
 
 **Side effects.**
 - Assigns the conversation to the token owner only when it has no agent.
@@ -1071,6 +1082,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 - Pass `channelUuid` when multiple WhatsApp numbers are connected; for a conversation it must match its channel. Pass `language` to select the exact approved translation on that number.
 - `parameters` fills the body variables positionally: the first entry becomes {{1}}. A body that repeats {{1}} still takes one entry per distinct variable.
 - A missing or blank entry uses the value linked to that variable on the template (for example the contact name), the same as flows and campaigns; with no link it goes out blank.
+- A `COPY_CODE` button needs its coupon and a `URL` button ending in `{{1}}` needs the end of the link, both in `buttons` with the button `index` from the template (counting from 0): `[{ "index": 0, "coupon_code": "BLACK10" }]` or `[{ "index": 1, "url_suffix": "pedido/123" }]`. Leaving one out, or a coupon longer than 15 characters on a limited-time offer (20 otherwise), is refused before anything is sent. A media header takes `headerMediaUuid` (a media library file of the header type). A carousel takes `cards`, one per card in the template order: `{ "mediaUuid": "…", "parameters": ["R$ 89"], "buttons": [{ "index": 0, "url_suffix": "p/101" }] }` — every card needs its media. A limited-time offer with a countdown takes `limitedTimeOffer.expirationTimeMs`, the end as a Unix timestamp in milliseconds, later than now and within a year; an end already past is refused with `offer_expired`. Library media (header or cards) needs the `messages:media` scope and the files permission, like `send_media_message`; card values cannot be blank.
 - The template must already be `APPROVED`; check with `list_whatsapp_templates` first.
 - A MARKETING template will not create a contact: addressing one by `phone` alone is refused unless the contact already exists. UTILITY and AUTHENTICATION may create it.
 - Every send passes a policy guard before Meta sees it, and a block is a tool error carrying its own code: the contact opted out (`PARAR`), the same content already went out in the last 24h, a frequency cap, a marketing pause on the channel, or a kill switch. A blocked send is a decision of the workspace, not a transient failure — report it, do not retry the same call.
@@ -1566,7 +1578,7 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
 - Use cart for a shared draft without reserving stock. Checkout mode cart takes cartUuid and waits for a link, order or payment; the customer chooses payment in the storefront. Existing order mode remains unchanged.
 - The `data` object of a node is validated field by field against this schema. Guessing field names is the most common cause of a rejected graph.
@@ -1592,6 +1604,7 @@ _No arguments._
 - Every uuid you put in a node must come from here (or from another list tool). An invented uuid fails validation.
 - `availableResources.businessSchedules` is what the `business_hours` block needs: a schedule uuid from another company is rejected, and that block accepts no outgoing handle other than `inside` and `outside`.
 - `availableResources.aiAgents` is what the `ai_agent` block needs. Schedules are created in the dashboard. Use `create_ai_agent` to configure an inactive AI agent, then activate it in the dashboard. Knowledge sources can be added with `create_knowledge_source`.
+- `availableResources.whatsappForms` lists the published WhatsApp forms (uuid, name, field keys) for the `whatsapp_form` block. Forms are created and published in the dashboard (Settings > WhatsApp > Forms); answers land in `vars.form.<field key>`.
 
 #### `list_flows`
 
@@ -1691,7 +1704,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |
@@ -1727,7 +1740,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |
@@ -2209,7 +2222,7 @@ Submit a new message template to Meta for review. Approval is asynchronous: the 
 - Four body rules are enforced before submission, because Meta rejects them with an unhelpful generic error: a variable may not open the body, may not close it, variables may not be adjacent, and numbering must run sequentially from {{1}}.
 - Every `{{n}}` needs a matching entry in `sampleValues`, in order.
 - `name` accepts only lowercase letters, digits and underscores.
-- Buttons follow Meta limits, checked before submission: at most 10, with up to 2 `URL`, 1 `PHONE_NUMBER` and 1 `COPY_CODE`, and quick replies grouped together. A URL may end with a single `{{1}}` (then `example` is the full sample URL in a one-item array); `COPY_CODE` is MARKETING-only and its `example` is a string. Templates with a dynamic URL or a copy code cannot be sent by `send_template_message`.
+- Buttons follow Meta limits, checked before submission: at most 10, with up to 2 `URL`, 1 `PHONE_NUMBER` and 1 `COPY_CODE`, and quick replies grouped together. A URL may end with a single `{{1}}` (then `example` is the full sample URL in a one-item array); `COPY_CODE` is MARKETING-only and its `example` is a string. A dynamic URL or a copy code takes its value at send time, in `buttons` of `send_template_message`.
 
 ```json
 {

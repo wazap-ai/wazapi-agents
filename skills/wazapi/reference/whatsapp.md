@@ -104,7 +104,7 @@ Submit a new message template to Meta for review. Approval is asynchronous: the 
 - Four body rules are enforced before submission, because Meta rejects them with an unhelpful generic error: a variable may not open the body, may not close it, variables may not be adjacent, and numbering must run sequentially from {{1}}.
 - Every `{{n}}` needs a matching entry in `sampleValues`, in order.
 - `name` accepts only lowercase letters, digits and underscores.
-- Buttons follow Meta limits, checked before submission: at most 10, with up to 2 `URL`, 1 `PHONE_NUMBER` and 1 `COPY_CODE`, and quick replies grouped together. A URL may end with a single `{{1}}` (then `example` is the full sample URL in a one-item array); `COPY_CODE` is MARKETING-only and its `example` is a string. Templates with a dynamic URL or a copy code cannot be sent by `send_template_message`.
+- Buttons follow Meta limits, checked before submission: at most 10, with up to 2 `URL`, 1 `PHONE_NUMBER` and 1 `COPY_CODE`, and quick replies grouped together. A URL may end with a single `{{1}}` (then `example` is the full sample URL in a one-item array); `COPY_CODE` is MARKETING-only and its `example` is a string. A dynamic URL or a copy code takes its value at send time, in `buttons` of `send_template_message`.
 
 ```json
 {

@@ -53,7 +53,7 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
 - Use cart for a shared draft without reserving stock. Checkout mode cart takes cartUuid and waits for a link, order or payment; the customer chooses payment in the storefront. Existing order mode remains unchanged.
 - The `data` object of a node is validated field by field against this schema. Guessing field names is the most common cause of a rejected graph.
@@ -79,6 +79,7 @@ _No arguments._
 - Every uuid you put in a node must come from here (or from another list tool). An invented uuid fails validation.
 - `availableResources.businessSchedules` is what the `business_hours` block needs: a schedule uuid from another company is rejected, and that block accepts no outgoing handle other than `inside` and `outside`.
 - `availableResources.aiAgents` is what the `ai_agent` block needs. Schedules are created in the dashboard. Use `create_ai_agent` to configure an inactive AI agent, then activate it in the dashboard. Knowledge sources can be added with `create_knowledge_source`.
+- `availableResources.whatsappForms` lists the published WhatsApp forms (uuid, name, field keys) for the `whatsapp_form` block. Forms are created and published in the dashboard (Settings > WhatsApp > Forms); answers land in `vars.form.<field key>`.
 
 #### `list_flows`
 
@@ -178,7 +179,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |
@@ -214,7 +215,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |

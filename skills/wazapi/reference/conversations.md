@@ -559,7 +559,7 @@ Sends an approved Meta template, opening the conversation if needed.
 
 **When to use.** To reach someone outside the 24h window — including a contact who has never written. This is the transactional-notification path.
 
-Send a Meta approved template message. Address it with exactly one of conversationUuid, contactUuid or phone — templates exist precisely to reach people outside the 24h window, so contactUuid and phone open the conversation when none exists yet. For UTILITY/AUTHENTICATION templates, phone also creates the contact; MARKETING templates require an existing contact (with opt-in) and are subject to the company send policy, opt-outs and frequency caps — a blocked send returns the blocking reason. Body variables are filled positionally from the parameters array; a copy-code button takes its coupon and a URL button ending in {{1}} its suffix in buttons ({ index, coupon_code | url_suffix }, index as in the template).
+Send a Meta approved template message. Address it with exactly one of conversationUuid, contactUuid or phone — templates exist precisely to reach people outside the 24h window, so contactUuid and phone open the conversation when none exists yet. For UTILITY/AUTHENTICATION templates, phone also creates the contact; MARKETING templates require an existing contact (with opt-in) and are subject to the company send policy, opt-outs and frequency caps — a blocked send returns the blocking reason. Body variables are filled positionally from the parameters array; a copy-code button takes its coupon and a URL button ending in {{1}} its suffix in buttons ({ index, coupon_code | url_suffix }, index as in the template). A media header takes headerMediaUuid (media library file); a carousel takes cards, one per card in order, each with mediaUuid and its parameters/buttons; a limited-time offer with a countdown takes limitedTimeOffer.expirationTimeMs (future Unix ms, within a year).
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -571,9 +571,16 @@ Send a Meta approved template message. Address it with exactly one of conversati
 | `languageCode` | string | no | — |
 | `parameters` | string[] | no | — |
 | `buttons` | object[] | no | 0–10 items |
+| `headerMediaUuid` | uuid | no | — |
+| `cards` | object[] | no | 0–10 items |
+| `limitedTimeOffer` | object | no | — |
 | `buttons[].index` | integer | yes | range 0–9 |
 | `buttons[].coupon_code` | string | no | — |
 | `buttons[].url_suffix` | string | no | length 1–2000 |
+| `cards[].mediaUuid` | uuid | yes | — |
+| `cards[].parameters` | string[] | no | 0–20 items |
+| `cards[].buttons` | object[] | no | 0–2 items |
+| `limitedTimeOffer.expirationTimeMs` | integer | yes | — |
 
 **Side effects.**
 - Assigns the conversation to the token owner only when it has no agent.
@@ -584,7 +591,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 - Pass `channelUuid` when multiple WhatsApp numbers are connected; for a conversation it must match its channel. Pass `language` to select the exact approved translation on that number.
 - `parameters` fills the body variables positionally: the first entry becomes {{1}}. A body that repeats {{1}} still takes one entry per distinct variable.
 - A missing or blank entry uses the value linked to that variable on the template (for example the contact name), the same as flows and campaigns; with no link it goes out blank.
-- A `COPY_CODE` button needs its coupon and a `URL` button ending in `{{1}}` needs the end of the link, both in `buttons` with the button `index` from the template (counting from 0): `[{ "index": 0, "coupon_code": "BLACK10" }]` or `[{ "index": 1, "url_suffix": "pedido/123" }]`. Leaving one out, or a coupon longer than 15 characters on a limited-time offer (20 otherwise), is refused before anything is sent. Carousels and limited-time offers with expiration are sent by a campaign or the Public API, not this tool.
+- A `COPY_CODE` button needs its coupon and a `URL` button ending in `{{1}}` needs the end of the link, both in `buttons` with the button `index` from the template (counting from 0): `[{ "index": 0, "coupon_code": "BLACK10" }]` or `[{ "index": 1, "url_suffix": "pedido/123" }]`. Leaving one out, or a coupon longer than 15 characters on a limited-time offer (20 otherwise), is refused before anything is sent. A media header takes `headerMediaUuid` (a media library file of the header type). A carousel takes `cards`, one per card in the template order: `{ "mediaUuid": "…", "parameters": ["R$ 89"], "buttons": [{ "index": 0, "url_suffix": "p/101" }] }` — every card needs its media. A limited-time offer with a countdown takes `limitedTimeOffer.expirationTimeMs`, the end as a Unix timestamp in milliseconds, later than now and within a year; an end already past is refused with `offer_expired`.
 - The template must already be `APPROVED`; check with `list_whatsapp_templates` first.
 - A MARKETING template will not create a contact: addressing one by `phone` alone is refused unless the contact already exists. UTILITY and AUTHENTICATION may create it.
 - Every send passes a policy guard before Meta sees it, and a block is a tool error carrying its own code: the contact opted out (`PARAR`), the same content already went out in the last 24h, a frequency cap, a marketing pause on the channel, or a kill switch. A blocked send is a decision of the workspace, not a transient failure — report it, do not retry the same call.

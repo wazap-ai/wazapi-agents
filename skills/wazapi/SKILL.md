@@ -131,7 +131,7 @@ A record that does not exist and a record belonging to another company return th
 ### Reply to someone waiting
 
 `list_conversations` with `status: "open"` → `list_messages` to read the thread → draft the reply → **confirm with the user** → `send_text_message`.
-Public API webhooks `conversation.assigned` and `conversation.status_changed` are opt-in in Settings → API. They include previous assignment/status, conversation, integration-specific contact.external_id and actor (user, flow, ai_agent, api, mcp or system). MCP changes identify actor.type=mcp. Unchanged values and rolled-back writes emit nothing; ending an AI session alone is not a conversation status change.
+Public API webhooks `conversation.assigned` and `conversation.status_changed` are opt-in per webhook, chosen in Settings → API or, since API 1.46, through `/api/v1/webhooks` (scope `webhooks:write`). They include previous assignment/status, conversation, integration-specific contact.external_id and actor (user, flow, ai_agent, api, mcp or system). MCP changes identify actor.type=mcp. Unchanged values and rolled-back writes emit nothing; ending an AI session alone is not a conversation status change. A Public API send that ends failed, even before Meta accepted it (free text outside the 24h window answers `whatsapp_window_closed`), emits the opt-in `message.send.failed`.
 
 Remember that sending sets the conversation to `pending` and assigns it to you when it has no agent; one that someone else holds stays with them. Do not use it for read-only triage.
 

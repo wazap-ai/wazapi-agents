@@ -234,13 +234,14 @@ Read AI duty settings
 **Scope:** `ai_agents:read`
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** Read the company duty mode, agent, channel list and daily suggestion cap without calling AI.
+**When to use.** Read the company duty settings and dailyCounters (company-local day, triggers A/B/C: decisions, confirmed sends, rule/quota suppressions and invalid decisions with reason counts) without calling AI.
 
-Read company AI duty configuration. Default desligado; sombra stores suggestions, nota creates internal notes. Never sends to the contact. No AI call.
+Read company AI duty configuration and dailyCounters for the company-local day, by trigger A/B/C: decisions, confirmed sends, rule/quota suppressions and invalid decisions with reason counts. Plantao quotas consume only confirmed sends; in-flight and uncertain sends reserve capacity. Default desligado. No AI call.
 
 _No arguments._
 
-- Default desligado. sombra stores private shadow records; nota creates one internal note. Neither sends to a contact. Requires ai_agents:read and settings.general. Phase 1 only supports WhatsApp.
+- Default desligado. sombra stores private shadow records; nota creates one internal note; neither sends to a contact. plantao replies to the lead as the seller's assistant, only in plantao.groups. Requires ai_agents:read and settings.general. Only WhatsApp.
+- dailyCounters is read-only. Plantao quotas count only confirmed sends; in-flight and uncertain sends reserve capacity until resolved. Invalid reason counts include recovered format retries; invalidas counts decisions that remain invalid. invalidas and invalidasPorMotivo apply only to the trigger B context decision; they remain zero for A/C.
 
 #### `update_ai_duty_settings`
 
@@ -251,16 +252,33 @@ Update AI duty settings
 
 **When to use.** Replace company duty configuration only after explicit human authorization to change or enable it.
 
-Replace AI duty configuration for this company. Requires an active company agent when enabled. Explicitly choose desligado, sombra or nota; no contact-sending mode exists. Daily company cap defaults to 60.
+Replace AI duty configuration for this company. Requires an active company agent when enabled. Explicitly choose desligado, sombra, nota or plantao. plantao sends to leads inside the 24 h window, only in plantao.groups (each with supervisorUuids to mention when the lead wants to close); omit plantao to keep the saved one. Daily company cap defaults to 60.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `mode` | `desligado` \| `sombra` \| `nota` | yes | — |
-| `agentUuid` | uuid \| null | yes | — |
-| `channels` | `whatsapp`[] | yes | 0–1 items |
-| `dailyLimit` | integer | yes | range 1–1000 |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `mode` | `desligado` \| `sombra` \| `nota` \| `plantao` | yes | — | — |
+| `agentUuid` | uuid \| null | yes | — | — |
+| `channels` | `whatsapp`[] | yes | 0–1 items | — |
+| `dailyLimit` | integer | yes | range 1–1000 | — |
+| `plantao` | object | no | — | Plantão configuration. Omit to keep the saved one. |
+| `plantao.janelaContato` | object | no | — | Shared contact window for A/C/B, company timezone. Default 08:00 to 22:00; retomadaJanela is a compatible alias. |
+| `plantao.respostaRapidaMinutos` | integer | no | range 1–120 | Only A may reply outside the window to a lead message received at most this many minutes ago. Default 20. |
+| `plantao.limiteDiario` | integer | no | range 1–1000 | Separate A/C daily cap. Omit to keep; legacy settings fall back to dailyLimit. New default 300. |
+| `plantao.groups` | object[] | yes | 0–50 items | Groups where plantão applies, each with the supervisors to mention. |
+| `plantao.retomadaMinutos` | integer | no | range 30–1380 | Deprecated single delay; maps to a cadence with one item. Omit to keep. |
+| `plantao.retomadaCadenciaMinutos` | integer[] | no | 1–3 items | Relative delays: default [30,90,210]; each delay after the previous attempt. |
+| `plantao.retomadaJanela` | object | no | — | — |
+| `plantao.retomadaLimiteDiario` | integer | no | range 1–1000 | Separate company-local cap for B reservations, default 100. |
+| `plantao.gatilhoAusente` | boolean | no | — | Trigger A on/off: reply when the assigned seller is absent. Omit to keep. |
+| `plantao.carenciaDonoAtivo` | object | no | — | Trigger A grace after effective owner activity in this conversation: window default 60 minutes, wait default 3 minutes from human wait start or assignment. An owner reply cancels that wait. Omitted keys keep saved values. |
+| `plantao.notaForaDoPlantao` | boolean | no | — | Use phase 1 internal notes when plantao is ineligible. Default false; omit to keep. |
+| `plantao.gatilhoRetomada` | boolean | no | — | Trigger B on/off: one follow-up when the lead went silent. Omit to keep. |
+| `plantao.regras` | object | no | — | Guard rules, all on by default. false lets the reply through. Omit to keep. |
 
-- Requires ai_agents:write and settings.general. An enabled mode requires an active agent from this company. dailyLimit is 1–1000, default 60; reservations including failed attempts count toward the cap in the company time zone. Empty channels disables eligibility. No send or takeover mode exists.
+- plantao.carenciaDonoAtivo {janelaMinutos, esperaMinutos}: trigger A waits when the owner effectively replied in this conversation recently. Defaults 60 and 3 minutes; bounds 1..1440 and 1..180. Wait starts at human wait or assignment, whichever is later; an owner reply cancels that wait. Omitted keys keep saved values. No effect on B/C or distribution presence.
+- Requires ai_agents:write and settings.general. An enabled mode requires an active agent from this company. dailyLimit is 1–1000, default 60. In plantao, only confirmed sends consume the daily cap; in-flight and uncertain sends reserve capacity in the company time zone. Empty channels disables eligibility.
+- plantao sends to leads: trigger A first requires an active assigned seller with manual status different from online, then applies the group deadline (unless ausenteImediato) and carenciaDonoAtivo for a recent owner reply in this conversation; online always waits for C, regardless of heartbeat; trigger B sends one follow-up after retomadaMinutos (default 180) when the seller spoke last, with at least 60 min left in the 24 h window. It never reassigns or transfers. plantao.groups lists group UUIDs with supervisorUuids (company members) mentioned when the lead wants to close or asks for a discount. Omitting plantao keeps the saved configuration. Turn it off with mode sombra or desligado.
+- plantao.gatilhoAusente (trigger A) and plantao.gatilhoRetomada (trigger B) switch each trigger; plantao needs at least one on. plantao.regras {r1..r5} switch each guard rule (all true by default; false lets the reply through that rule, but a discount percentage is always blocked). Inside plantao, omitted triggers and rules keep the saved values, so an older client never re-enables what the dashboard turned off. The dashboard edits the same settings in each agent, tab Functions.
 
 #### `get_ai_agent_usage`
 

@@ -90,7 +90,7 @@ Create a new contact in the authenticated Wazapi company
 ```json
 {
   "phone": "5511999999999",
-  "name": "Maria Silva",
+  "name": "Contato fictício",
   "tags": [
     "lead"
   ]
@@ -119,6 +119,7 @@ Update metadata, name, tags, or custom fields of an existing contact by UUID
 
 - `tags` replaces the whole array, but `customFields` is merged key by key. There is no way to delete a custom field through this tool.
 - Send the full tag list, including the tags you want to keep.
+- MCP acts for a person: changed readOnly values are refused with a clear error. Flows, AI agents, automatic summaries, system processes and public API integrations may still write them; omitted or equivalent empty values are unchanged.
 
 #### `block_contact`
 
@@ -313,7 +314,7 @@ Patch company panel options. phoneEquivalenceBrNinthDigit (default false) enable
 **Side effects.**
 - transferTargets (all/members, default all) limits only the panel transfer menu and unitary assignment to actual group members, including member-supervisors; bulk assignment and automatic distribution stay unchanged. phoneEquivalenceBrNinthDigit (false) enables same-company Brazilian mobile lookup with/without the ninth digit without modifying existing contacts or send destinations. Split pairs select the most recent conversation and are logged; Public API contact resolution and blocking are unchanged. Patches panel options; supplied cards/nativeItems/fieldItems arrays replace their lists, omitted arrays and item attributes are preserved. topCards (false) requires detailsReadOnly. detailsCrmStage (show/hide) affects only Details. wrapValues (false) wraps long values. nativeItems accepts width (full/half) and hideWhenEmpty (false); fieldItems accepts fieldUuid, width and placement (body/header). Consecutive half fields pair at card width >=340px, with one column on narrow/mobile. Header links keep HTTPS validation and hide from the body. Does not grant field editing to access profiles.
 
-- Use readOnly on a custom-field definition to prohibit human panel edits. Automation, API and MCP value writes stay available.
+- Use readOnly on a custom-field definition to prohibit human panel edits. readOnly blocks only user and mcp actors; flows, AI agents, automatic summaries, system processes and public API integrations may still write.
 
 #### `create_custom_field`
 
@@ -329,7 +330,7 @@ Create a custom field for contacts or conversations. The key is normalised (lowe
 | --- | --- | --- | --- | --- |
 | `key` | string | yes | length 1–60 | — |
 | `label` | string | yes | length 1–80 | — |
-| `type` | `text` \| `number` \| `date` \| `select` | yes | — | — |
+| `type` | `text` \| `number` \| `date` \| `datetime` \| `select` | yes | — | — |
 | `options` | object[] | no | 0–2000 items | — |
 | `optionsPatch` | object | no | — | — |
 | `scope` | `contact` \| `conversation` | no | — | — |
@@ -340,7 +341,8 @@ Create a custom field for contacts or conversations. The key is normalised (lowe
 | `section` | string \| null | no | — | Context panel block title; null removes the block title. |
 | `position` | integer \| null | no | — | Lower positions appear first; null restores label order. |
 | `multiline` | boolean | no | — | Show text fields in multiple lines. Defaults to false. |
-| `readOnly` | boolean | no | — | Prevents human panel edits, including owners. Flow, AI, public API and MCP writes remain allowed. |
+| `readOnly` | boolean | no | — | Blocks only user and mcp value writes. Flows, AI agents, automatic summaries, system processes and public API integrations may still write. |
+| `mirror` | object \| null | no | — | Optional read alias for a select, unique across the company and its field keys. null clears the alias; integration binding is preserved. |
 | `linkTemplate` | string \| null | no | — | HTTPS URL with {value} in path, query or fragment; fixed host. The stored field value is URL encoded. null clears it. Requires settings.general. |
 | `linkLabel` | string \| null | no | — | Link text; absent or null uses the field value. |
 | `hideWhenEqualsNative` | `name` \| `email` \| null | no | — | Hide a field equal to contact name/email, ignoring case, accents and whitespace. null clears; omission preserves. |
@@ -350,11 +352,12 @@ Create a custom field for contacts or conversations. The key is normalised (lowe
 | `optionsPatch.upsert` | object[] | no | 0–2000 items | — |
 | `optionsPatch.remove` | string[] | no | 0–2000 items | — |
 
+- Generic types: text, number, date (YYYY-MM-DD), datetime (ISO 8601 with explicit offset or Z), select (up to 2000 unique values). section, position and readOnly are integration-defined. Select mirror.idAlias optionally defines a company-unique read alias, without any built-in external field catalogue. Flow and AI retain raw temporal text; only public API and human panel writes require strict date/datetime formats.
 - The key is normalised to lowercase with underscores and cannot change later. Native tracking keys (utm_*) are refused.
 - linkTemplate accepts HTTPS with {value} outside a fixed host. Values are URL encoded; links open in a new tab with linkLabel or the stored value. Only settings.general configures definitions.
 - The same key can exist once per scope (`contact` or `conversation`).
 - hideWhenEqualsNative accepts name/email/null; comparison ignores case, accents and whitespace. section and position mix the field with configured native items in company cards. A new field is not editable by regular access profiles until explicitly granted.
-- readOnly prevents every human panel edit, including owner and Administrator. Flow, AI, API and MCP value writes retain their existing rules.
+- readOnly prevents every human panel edit, including owner and Administrator. readOnly blocks only user and mcp actors; flows, AI agents, automatic summaries, system processes and public API integrations may still write.
 
 ```json
 {
@@ -379,7 +382,7 @@ Change label, type, scope or flags of a custom field. Omitted fields keep their 
 | --- | --- | --- | --- | --- |
 | `fieldUuid` | uuid | yes | — | — |
 | `label` | string | no | length 1–80 | — |
-| `type` | `text` \| `number` \| `date` \| `select` | no | — | — |
+| `type` | `text` \| `number` \| `date` \| `datetime` \| `select` | no | — | — |
 | `options` | object[] | no | 0–2000 items | — |
 | `optionsPatch` | object | no | — | — |
 | `scope` | `contact` \| `conversation` | no | — | — |
@@ -390,7 +393,8 @@ Change label, type, scope or flags of a custom field. Omitted fields keep their 
 | `section` | string \| null | no | — | Context panel block title; null removes the block title. |
 | `position` | integer \| null | no | — | Lower positions appear first; null restores label order. |
 | `multiline` | boolean | no | — | Show text fields in multiple lines. Defaults to false. |
-| `readOnly` | boolean | no | — | Prevents human panel edits, including owners. Flow, AI, public API and MCP writes remain allowed. |
+| `readOnly` | boolean | no | — | Blocks only user and mcp value writes. Flows, AI agents, automatic summaries, system processes and public API integrations may still write. |
+| `mirror` | object \| null | no | — | Optional read alias for a select, unique across the company and its field keys. null clears the alias; integration binding is preserved. |
 | `linkTemplate` | string \| null | no | — | HTTPS URL with {value} in path, query or fragment; fixed host. The stored field value is URL encoded. null clears it. Requires settings.general. |
 | `linkLabel` | string \| null | no | — | Link text; absent or null uses the field value. |
 | `hideWhenEqualsNative` | `name` \| `email` \| null | no | — | Hide a field equal to contact name/email, ignoring case, accents and whitespace. null clears; omission preserves. |
@@ -402,7 +406,7 @@ Change label, type, scope or flags of a custom field. Omitted fields keep their 
 
 - Select fields have options: [{value, label}], up to 2000 unique values. options replaces the entire list; optionsPatch: {upsert: [{value, label}], remove: [value]} edits part. Never send both. Removed stored values stay unchanged.
 - hideWhenEqualsNative accepts name/email/null: hide a field equal to that native contact value ignoring case, accents and whitespace. Omission preserves; null resets. linkTemplate and linkLabel support null to clear either setting. Templates cannot contain credentials or vary the origin.
-- Omitted attributes retain their value. readOnly only restricts human panel writes; setting it false does not grant profile permissions.
+- Omitted attributes retain their value. readOnly restricts panel and MCP writes; setting it false does not grant profile permissions.
 - Card titles, icons and native placements are configured separately with update_conversation_panel.
 
 #### `delete_custom_field`

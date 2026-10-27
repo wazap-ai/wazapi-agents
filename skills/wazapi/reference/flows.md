@@ -55,6 +55,7 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 | --- | --- | --- | --- |
 | `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
+- collect_input accepts phone_br: strip non-digits and leading zeros, require 10 or 11 national digits (area code and number, without 55), and save with prefix 55. The existing phone type is unchanged. send_list supports Instagram and Messenger as numbered text plus quick replies: at most 10 items, titles up to 20 characters. WhatsApp keeps native lists and 24-character titles. Webchat remains unsupported.
 - Use cart for a shared draft without reserving stock. Checkout mode cart takes cartUuid and waits for a link, order or payment; the customer chooses payment in the storefront. Existing order mode remains unchanged.
 - The `data` object of a node is validated field by field against this schema. Guessing field names is the most common cause of a rejected graph.
 
@@ -326,7 +327,7 @@ Start an active flow for a contact immediately, without waiting for a keyword. A
   "flowUuid": "00000000-0000-0000-0000-000000000000",
   "phone": "5511999999999",
   "variables": {
-    "nome": "Maria",
+    "nome": "Contato fictício",
     "plano": "pro"
   }
 }

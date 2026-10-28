@@ -1086,6 +1086,7 @@ Send a Meta approved template message. Address it with exactly one of conversati
 - A missing or blank entry uses the value linked to that variable on the template (for example the contact name), the same as flows and campaigns; with no link it goes out blank.
 - A `COPY_CODE` button needs its coupon and a `URL` button ending in `{{1}}` needs the end of the link, both in `buttons` with the button `index` from the template (counting from 0): `[{ "index": 0, "coupon_code": "BLACK10" }]` or `[{ "index": 1, "url_suffix": "pedido/123" }]`. Leaving one out, or a coupon longer than 15 characters on a limited-time offer (20 otherwise), is refused before anything is sent. A media header takes `headerMediaUuid` (a media library file of the header type). A carousel takes `cards`, one per card in the template order: `{ "mediaUuid": "…", "parameters": ["R$ 89"], "buttons": [{ "index": 0, "url_suffix": "p/101" }] }` — every card needs its media. A limited-time offer with a countdown takes `limitedTimeOffer.expirationTimeMs`, the end as a Unix timestamp in milliseconds, later than now and within a year; an end already past is refused with `offer_expired`. Library media (header or cards) needs the `messages:media` scope and the files permission, like `send_media_message`; card values cannot be blank.
 - The template must already be `APPROVED`; check with `list_whatsapp_templates` first.
+- A one-time code (AUTHENTICATION) template takes the code as its only entry in `parameters` (1 to 15 characters, no spaces); it goes in the body and in the copy-code button, and the message is stored with the code masked.
 - A MARKETING template will not create a contact: addressing one by `phone` alone is refused unless the contact already exists. UTILITY and AUTHENTICATION may create it.
 - Every send passes a policy guard before Meta sees it, and a block is a tool error carrying its own code: the contact opted out (`PARAR`), the same content already went out in the last 24h, a frequency cap, a marketing pause on the channel, or a kill switch. A blocked send is a decision of the workspace, not a transient failure — report it, do not retry the same call.
 - A refusal mentioning channel pacing is the exception: it protects the number quality score and tells you how many seconds to wait. That one is worth retrying once, after the wait.
@@ -2207,7 +2208,7 @@ Submits a new message template to Meta for review.
 
 **When to use.** When the workspace needs to start conversations outside the 24h window and no suitable template exists yet.
 
-Submit a new message template to Meta for review. Approval is asynchronous: the template comes back as PENDING and only becomes usable by send_template_message once Meta approves it. Body variables use the {{1}}, {{2}} positional syntax and every one of them needs a matching entry in sampleValues, otherwise Meta rejects the submission. Buttons: up to 10 (max 2 URL, 1 PHONE_NUMBER, 1 COPY_CODE), quick replies kept together; a URL may end with one {{1}} and then needs example [full sample URL]; COPY_CODE is MARKETING-only and takes example as a string.
+Submit a new message template to Meta for review. Approval is asynchronous: the template comes back as PENDING and only becomes usable by send_template_message once Meta approves it. Body variables use the {{1}}, {{2}} positional syntax and every one of them needs a matching entry in sampleValues, otherwise Meta rejects the submission. Buttons: up to 10 (max 2 URL, 1 PHONE_NUMBER, 1 COPY_CODE), quick replies kept together; a URL may end with one {{1}} and then needs example [full sample URL]; COPY_CODE is MARKETING-only and takes example as a string. AUTHENTICATION (one-time code) templates have no text: send exactly [{ "type": "BODY", "add_security_recommendation": true }, optionally { "type": "FOOTER", "code_expiration_minutes": 1-90 }, { "type": "BUTTONS", "buttons": [{ "type": "OTP", "otp_type": "COPY_CODE" }] }]; the code is sent later as the single parameter of send_template_message.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
@@ -2219,6 +2220,8 @@ Submit a new message template to Meta for review. Approval is asynchronous: the 
 | `components[].type` | `HEADER` \| `BODY` \| `FOOTER` \| `BUTTONS` | yes | — |
 | `components[].format` | `TEXT` \| `IMAGE` \| `VIDEO` \| `DOCUMENT` \| `LOCATION` | no | — |
 | `components[].text` | string | no | length 0–1024 |
+| `components[].add_security_recommendation` | boolean | no | — |
+| `components[].code_expiration_minutes` | integer | no | range 1–90 |
 | `components[].buttons` | object[] | no | 0–10 items |
 
 **Side effects.**
@@ -2230,6 +2233,7 @@ Submit a new message template to Meta for review. Approval is asynchronous: the 
 - Every `{{n}}` needs a matching entry in `sampleValues`, in order.
 - `name` accepts only lowercase letters, digits and underscores.
 - Buttons follow Meta limits, checked before submission: at most 10, with up to 2 `URL`, 1 `PHONE_NUMBER` and 1 `COPY_CODE`, and quick replies grouped together. A URL may end with a single `{{1}}` (then `example` is the full sample URL in a one-item array); `COPY_CODE` is MARKETING-only and its `example` is a string. A dynamic URL or a copy code takes its value at send time, in `buttons` of `send_template_message`.
+- A one-time code template (`category: "AUTHENTICATION"`) has no text and no `sampleValues`: Meta writes the message. Send exactly `[{ "type": "BODY", "add_security_recommendation": true }, { "type": "FOOTER", "code_expiration_minutes": 10 }, { "type": "BUTTONS", "buttons": [{ "type": "OTP", "otp_type": "COPY_CODE" }] }]` (the footer is optional, 1 to 90 minutes). It is sent with the code as the single parameter of `send_template_message`; the code is never stored.
 
 ```json
 {

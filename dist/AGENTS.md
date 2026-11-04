@@ -1748,6 +1748,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 
 - This is not a patch. Call `get_flow` first and send the full graph back with your changes applied, or you will silently destroy the rest of the flow.
 - Limits: 1 to 300 nodes, at most 800 edges.
+- Na ação add_internal_note, data.mentionUserUuids é opcional: até 10 UUIDs de pessoas da empresa, descobertos por get_flow_builder_context ou list_agents. Usuário de outra empresa é recusado. Pessoa removida ou inativa depois é ignorada com log e a nota é gravada. Usa a notificação de menção do inbox; simulação não menciona nem notifica. A mesma nota no mesmo bloco e sessão só notifica uma vez. Sem a lista, mantém o comportamento anterior.
 - For http_request, mappingsOn: "success" saves responseMappings and saveResponseTo only on HTTP 2xx; omitted or "always" keeps mapping error responses too. Failure routing and notices stay unchanged.
 - Each responseMappings item accepts skipEmpty: true to keep the previous variable when sourcePath resolves to null, a missing value or an empty string. The default is false; 0 and false are not empty. Mapping select fields still accepts their labels.
 - Cart nodes have success/failure exits. Checkout mode cart requires pronto, pedido_criado, pago, falha, expirado and cancelado exits. Saving a graph does not create a cart or payment.

@@ -127,7 +127,7 @@ Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent, queueOpeningDelayMinutes, queueMaxPerAgent, queueOpenWindowFirst).
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options, especially queuePolicy, queueWhenUnavailable, distributionScheduleUuid and queueOpeningDelayMinutes.
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -149,12 +149,13 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
+| `queuePolicy` | object | no | — | — |
 | `name` | string | yes | length 1–100 | — |
 | `memberUuids` | uuid[] | no | 0–1000 items | — |
 | `supervisorUuids` | uuid[] | no | 0–1000 items | — |
 | `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
 | `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
-| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueMaxPerAgent` | integer \| null | no | — | Legacy setting retained for compatibility. The sales queue has no per-person ceiling. |
 | `queueWhenUnavailable` | boolean | no | — | — |
 | `queueOpenWindowFirst` | boolean | no | — | — |
 | `distributionScheduleUuid` | uuid \| null | no | — | — |
@@ -175,6 +176,16 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 | `inactivityWarningMinutes` | integer | no | range 1–43200 | — |
 | `inactivityWarningMessage` | string | no | length 0–1000 | — |
 | `respectBusinessHours` | boolean | no | — | — |
+| `queuePolicy.rosterDays` | integer | no | range 1–365 | — |
+| `queuePolicy.historyDays` | integer | no | range 1–365 | — |
+| `queuePolicy.deadlinePercentile` | integer | no | range 1–99 | — |
+| `queuePolicy.deadlineGraceMinutes` | integer | no | range 0–1440 | — |
+| `queuePolicy.reservationMaxMinutesAfterOpening` | integer | no | range 0–1440 | — |
+| `queuePolicy.minimumHistory` | integer | no | range 1–365 | — |
+| `queuePolicy.doseSize` | integer | no | range 1–2147483647 | — |
+| `queuePolicy.doseIntervalMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.urgentWindowMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.historyStartDate` | string \| null | no | — | — |
 
 **Side effects.**
 - Creates the group and CRM pipeline, saves membership and audits the change. Membership affects access and conversation distribution.
@@ -194,12 +205,13 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
+| `queuePolicy` | object | no | — | — |
 | `name` | string | no | length 1–100 | — |
 | `memberUuids` | uuid[] | no | 0–1000 items | — |
 | `supervisorUuids` | uuid[] | no | 0–1000 items | — |
 | `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
 | `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
-| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueMaxPerAgent` | integer \| null | no | — | Legacy setting retained for compatibility. The sales queue has no per-person ceiling. |
 | `queueWhenUnavailable` | boolean | no | — | — |
 | `queueOpenWindowFirst` | boolean | no | — | — |
 | `distributionScheduleUuid` | uuid \| null | no | — | — |
@@ -221,13 +233,23 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 | `inactivityWarningMessage` | string | no | length 0–1000 | — |
 | `respectBusinessHours` | boolean | no | — | — |
 | `groupUuid` | uuid | yes | — | — |
+| `queuePolicy.rosterDays` | integer | no | range 1–365 | — |
+| `queuePolicy.historyDays` | integer | no | range 1–365 | — |
+| `queuePolicy.deadlinePercentile` | integer | no | range 1–99 | — |
+| `queuePolicy.deadlineGraceMinutes` | integer | no | range 0–1440 | — |
+| `queuePolicy.reservationMaxMinutesAfterOpening` | integer | no | range 0–1440 | — |
+| `queuePolicy.minimumHistory` | integer | no | range 1–365 | — |
+| `queuePolicy.doseSize` | integer | no | range 1–2147483647 | — |
+| `queuePolicy.doseIntervalMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.urgentWindowMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.historyStartDate` | string \| null | no | — | — |
 
 **Side effects.**
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
-- Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries each minute in distributionScheduleUuid business hours. queueOpenWindowFirst defaults to true: open 24-hour inbound windows first, FIFO within each block; false retains FIFO. Window is per conversation, by provider_timestamp with created_at fallback, computed once per round. Closed windows remain eligible when no open window waits, without an age cap; continuous open arrivals can defer them. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
-- Accumulated queue rounds rotate eligible members while respecting balanced_daily. queueBatchPerAgent caps both the minute batch and still-active queue deliveries awaiting the first successful human reply; a new minute does not reset that pending capacity. queueOpeningDelayMinutes defaults to 15 after each scheduled opening (0 disables; without a schedule no wait). queueMaxPerAgent caps active queue conversations per person, including answered ones; null clears that separate ceiling. Omitted fields remain unchanged. Operational changes require explicit human authorization.
+- queueWhenUnavailable enables the sales queue. queuePolicy stores rosterDays=7, historyDays=30, deadlinePercentile=75, deadlineGraceMinutes=30, reservationMaxMinutesAfterOpening=1440 (0..1440; zero disables offline reservation), minimumHistory=5, doseSize=5, doseIntervalMinutes=10 and urgentWindowMinutes=120 by default. Optional historyStartDate excludes partial measurement days. Read get_group before updating; omitted policy keys retain their values. Use a schedule from this company. Disabling cancels pending tickets at the next sweep without assigning them.
+- Weekly schedules use first observed online per company day, separate weekday and Saturday median/percentile. Opening reserves equal stock shares for scheduled members seen in the last rosterDays. Offline shares release after the historical deadline or at opening plus reservationMaxMinutesAfterOpening, whichever comes first, equally among online members. Opening is the first schedule start plus queueOpeningDelayMinutes, or local midnight without a schedule; lunch never restarts the reservation clock. Late sellers can receive future leads; history remains intact. Members without enough history have no offline reservation and enter daily balance at the group mean when they first come online, with a fixed daily offset. Online members receive stock in doses without a human-reply gate or conversation ceiling. Priority: Meta window still open with less than urgentWindowMinutes remaining, newest business-hour day leads balanced by distinct daily receipts (including manual), then reserved stock FIFO. queueOpeningDelayMinutes still applies. queueBatchPerAgent, queueMaxPerAgent and queueOpenWindowFirst are legacy settings ignored by this queue. Operational changes require explicit human authorization.
 - waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
 #### `get_agent`

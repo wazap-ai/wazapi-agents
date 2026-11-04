@@ -4,16 +4,18 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 ## Contents
 
-- `list_company_queries` — list company queries for the active company.
-- `create_company_query` — create company query for the active company.
-- `update_company_query` — update company query for the active company.
+- `list_company_queries` — Lists configured GET/POST queries in the active company, including post-payment queries.
+- `create_company_query` — Creates a company GET/POST query, including post-payment operations.
+- `update_company_query` — Updates a company query configuration and parameter sources.
 - `delete_company_query` — delete company query for the active company.
-- `test_company_query` — test company query for the active company.
+- `test_company_query` — Executes a GET/POST query without AI, with optional contact context.
 - `list_ai_agent_guard_rules` — Read this agent reply guard rules.
 - `save_ai_agent_guard_rule` — Create or patch a human-approved reply guard rule.
 - `list_ai_agent_guard_hits` — Read reply guard triggers and outcomes.
 - `list_ai_agents` — List AI agents
 - `get_ai_duty_settings` — Read AI duty settings
+- `dismiss_ai_suggestions` — Dismiss open AI suggestions in bulk
+- `get_ai_suggestion_counts` — Count open AI suggestions by seller
 - `update_ai_duty_settings` — Update AI duty settings
 - `get_ai_agent_usage` — Get AI agent usage and cost
 - `get_ai_agent` — Get AI agent
@@ -28,27 +30,29 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 
 #### `list_company_queries`
 
-list company queries for the active company.
+Lists configured GET/POST queries in the active company, including post-payment queries.
 
 **Scope:** `ai_agents:read`
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** Before configuring or testing a company query.
 
-List company-owned HTTPS GET queries; authentication values are never returned. Requires company settings permission.
+List company-owned HTTPS GET/POST queries; authentication values are never returned. Requires company settings permission.
 
 _No arguments._
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+- Requires `settings.general`. Returns configuration and authentication state, never credential values. Listing runs no queries and triggers no automatic actions.
+- Check `method` and `parameters[].source`: GET sends arguments in the URL; POST sends JSON and can change the external system. Omitted `source` or `argument` uses call arguments; `contact_uuid` and `last_paid_store_order_uuid` use conversation context resolved by the server.
+- `last_paid_store_order_uuid` identifies the most recently paid order for the same contact in the same company, with status `pago` or `entregue` and a `paidAt` value. Checkout orders also require `paymentStatus` to be `paid`. Queries can use this context after payment.
 
 #### `create_company_query`
 
-create company query for the active company.
+Creates a company GET/POST query, including post-payment operations.
 
 **Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** When the human requests an integration with a defined endpoint and parameters.
 
 Create a configurable company query, inactive by default. Use only a fixed HTTPS endpoint and an encrypted header or same-company/same-host knowledge credential. Requires explicit ai_agents:write.
 
@@ -57,6 +61,7 @@ Create a configurable company query, inactive by default. Use only a fixed HTTPS
 | `name` | string | yes | length 1–40 |
 | `description` | string | yes | length 1–600 |
 | `url` | string | yes | length 0–2048 |
+| `method` | `GET` \| `POST` | no | — |
 | `parameters` | object[] | no | — |
 | `authHeaderName` | string \| null | no | — |
 | `authHeaderValue` | string | no | length 1–8192 |
@@ -69,17 +74,42 @@ Create a configurable company query, inactive by default. Use only a fixed HTTPS
 | `parameters[].required` | boolean | yes | — |
 | `parameters[].enum` | string[] | no | — |
 | `parameters[].maxLength` | integer | no | range 1–120 |
+| `parameters[].source` | `argument` \| `contact_uuid` \| `last_paid_store_order_uuid` | no | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+**Side effects.**
+- Saves configuration and writes an audit entry. Queries start inactive by default; creation does not execute the HTTP request.
+
+- Requires `settings.general` and explicit sensitive scope `ai_agents:write`. Use a fixed HTTPS endpoint and an encrypted authentication header or credentials from a source in the same company and on the same host. Credential values are never returned.
+- `method` defaults to GET; POST sends a JSON object and can change external records when executed. Omitted `parameters[].source` or `argument` accepts conversation arguments; `contact_uuid` and `last_paid_store_order_uuid` are filled by the server and cannot be sent in `args`.
+- For post-payment operations, `last_paid_store_order_uuid` uses the latest paid order for the contact in the same company. Execution requires contact context and, when the parameter is required, an eligible order. Missing context or a required order fails before HTTP. Agent calls require the query to be active and allowed for that agent.
+
+```json
+{
+  "name": "check_post_payment",
+  "description": "Example query for the latest paid order of the contact.",
+  "url": "https://example.invalid/post-payment",
+  "method": "POST",
+  "credentialFromKnowledgeSourceUuid": "00000000-0000-4000-8000-000000000001",
+  "parameters": [
+    {
+      "name": "order_uuid",
+      "description": "Latest paid order of the contact, resolved by the server.",
+      "required": true,
+      "source": "last_paid_store_order_uuid"
+    }
+  ],
+  "isActive": false
+}
+```
 
 #### `update_company_query`
 
-update company query for the active company.
+Updates a company query configuration and parameter sources.
 
 **Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** To adjust an existing query, including its use after payment.
 
 Patch a company query. Omitted fields and credential values are preserved; arrays replace. Active queries affect the next permitted agent call. Requires explicit ai_agents:write.
 
@@ -88,6 +118,7 @@ Patch a company query. Omitted fields and credential values are preserved; array
 | `name` | string | no | length 1–40 |
 | `description` | string | no | length 1–600 |
 | `url` | string | no | length 0–2048 |
+| `method` | `GET` \| `POST` | no | — |
 | `parameters` | object[] | no | — |
 | `authHeaderName` | string \| null | no | — |
 | `authHeaderValue` | string | no | length 1–8192 |
@@ -101,8 +132,36 @@ Patch a company query. Omitted fields and credential values are preserved; array
 | `parameters[].required` | boolean | yes | — |
 | `parameters[].enum` | string[] | no | — |
 | `parameters[].maxLength` | integer | no | range 1–120 |
+| `parameters[].source` | `argument` \| `contact_uuid` \| `last_paid_store_order_uuid` | no | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+**Side effects.**
+- Saves configuration and writes an audit entry. Active query changes apply on the next permitted agent call, including ongoing conversations.
+- Supplied arrays replace existing ones. When sending `parameters`, include every parameter to keep.
+
+- Requires `settings.general` and explicit `ai_agents:write`. Omitted fields and credential values are preserved; credential values are never returned. Updating does not execute the query.
+- GET sends arguments in the URL; POST sends JSON and can change external records when called. `parameters[].source` accepts `argument`, `contact_uuid` or `last_paid_store_order_uuid`. Omitting `source` keeps the parameter as an argument, not protected context.
+- `contact_uuid` and `last_paid_store_order_uuid` are resolved by the server for the contact and company of the conversation. Never substitute a model-suggested order UUID for the latest paid order.
+
+```json
+{
+  "queryUuid": "00000000-0000-4000-8000-000000000001",
+  "method": "POST",
+  "parameters": [
+    {
+      "name": "contact_uuid",
+      "description": "Conversation contact, resolved by the server.",
+      "required": true,
+      "source": "contact_uuid"
+    },
+    {
+      "name": "order_uuid",
+      "description": "Latest paid order for this contact in the company.",
+      "required": true,
+      "source": "last_paid_store_order_uuid"
+    }
+  ]
+}
+```
 
 #### `delete_company_query`
 
@@ -119,25 +178,40 @@ Delete a company query and remove its agent references; recorded turn metadata r
 | --- | --- | --- | --- |
 | `queryUuid` | uuid | yes | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+- Requires settings.general. Credentials are never returned. Test executes the configured GET or POST without AI; POST can change the external system.
 
 #### `test_company_query`
 
-test company query for the active company.
+Executes a GET/POST query without AI, with optional contact context.
 
 **Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** When the human requests a real test of the configured integration.
 
-Perform one HTTPS GET with the configured header and supplied arguments, without AI. Returns status, time and at most 1500 response characters; never credentials. Requires explicit ai_agents:write and company settings permission.
+Perform one configured HTTPS GET or POST with the configured header and supplied arguments, without AI. Returns status, time and at most 1500 response characters; never credentials. Requires explicit ai_agents:write and company settings permission.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `queryUuid` | uuid | yes | — |
 | `args` | object | yes | — |
+| `contactUuid` | uuid | no | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+**Side effects.**
+- Executes the configured HTTP request even when the query is inactive. POST can create or change external records; this is a real request.
+- Audits status, duration, size and error code, without arguments or response text. Uses no AI.
+
+- Requires `settings.general` and explicit `ai_agents:write`. Returns status, duration and up to 1500 response characters, never credential values.
+- Send `contactUuid` from the active company for parameters with `source` set to `contact_uuid` or `last_paid_store_order_uuid`. The server resolves the contact and their latest paid order in that company. `args` accepts only parameters with `source` set to `argument` or omitted. Context parameters in `args` cause rejection.
+- Missing contact context or a paid order required by the configuration fails before HTTP. Check the method before testing a post-payment operation: a real POST can repeat external effects.
+
+```json
+{
+  "queryUuid": "00000000-0000-4000-8000-000000000001",
+  "contactUuid": "00000000-0000-4000-8000-000000000002",
+  "args": {}
+}
+```
 
 #### `list_ai_agent_guard_rules`
 
@@ -243,6 +317,39 @@ _No arguments._
 - Default desligado. sombra stores private shadow records; nota creates one internal note; neither sends to a contact. plantao replies to the lead as the seller's assistant, only in plantao.groups. Requires ai_agents:read and settings.general. Only WhatsApp.
 - dailyCounters is read-only. Plantao quotas count only confirmed sends; in-flight and uncertain sends reserve capacity until resolved. Invalid reason counts include recovered format retries; invalidas counts decisions that remain invalid. invalidas and invalidasPorMotivo apply only to the trigger B context decision; they remain zero for A/C.
 
+#### `dismiss_ai_suggestions`
+
+Dismiss open AI suggestions in bulk
+
+**Scope:** `conversations:write`
+
+**When to use.** Preview counts by seller, then dismiss open AI tasks after management requests cleanup.
+
+Preview or dismiss open AI seller tasks in the active company. dryRun defaults to true; false completes reminders and records the manager and reason. Preserves note history, personal reminders and sending/sent/dismissed suggestions. Requires inbox and dashboard.team or dashboard.company.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `dryRun` | boolean | no | — |
+| `sellerUuid` | uuid | no | — |
+| `createdBefore` | string | no | — |
+
+- Requires conversations:write, inbox and dashboard.team or dashboard.company in the active company. dryRun defaults to true and writes nothing; false completes open AI reminders with actor and reason while preserving note history. Other states and personal reminders remain untouched.
+- sellerUuid optionally limits the seller; createdBefore is an exclusive ISO timestamp with timezone. Returns dismissed and bySeller [{sellerUuid, name, count}]; in dryRun, dismissed is the number that would be dismissed. Repeating a completed cleanup returns zero.
+
+#### `get_ai_suggestion_counts`
+
+Count open AI suggestions by seller
+
+**Scope:** `conversations:read`
+
+**When to use.** Review seller suggestion tasks, including scheduled reminders, without reading conversation content.
+
+Count open seller suggestion tasks in the active company, including future reminders. No conversation content. Requires inbox and dashboard.team or dashboard.company.
+
+_No arguments._
+
+- Requires conversations:read, inbox and dashboard.team or dashboard.company. Counts are restricted to the active company.
+
 #### `update_ai_duty_settings`
 
 Update AI duty settings
@@ -256,11 +363,17 @@ Replace AI duty configuration for this company. Requires an active company agent
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
+| `summaryNotesEnabled` | boolean | no | — | Keep only the latest AI summary note. Default enabled; omitted preserves saved. |
+| `suggestionsEnabled` | boolean | no | — | Create seller suggestion tasks (internal note and personal reminder). Omitted preserves saved; default enabled. |
 | `mode` | `desligado` \| `sombra` \| `nota` \| `plantao` | yes | — | — |
 | `agentUuid` | uuid \| null | yes | — | — |
 | `channels` | `whatsapp`[] | yes | 0–1 items | — |
 | `dailyLimit` | integer | yes | range 1–1000 | — |
 | `plantao` | object | no | — | Plantão configuration. Omit to keep the saved one. |
+| `plantao.retomadaContextual` | boolean | no | — | — |
+| `plantao.leituraContexto` | boolean | no | — | — |
+| `plantao.leituraModelo` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` | no | — | — |
+| `plantao.umaVozPorConversa` | boolean | no | — | — |
 | `plantao.janelaContato` | object | no | — | Shared contact window for A/C/B, company timezone. Default 08:00 to 22:00; retomadaJanela is a compatible alias. |
 | `plantao.respostaRapidaMinutos` | integer | no | range 1–120 | Only A may reply outside the window to a lead message received at most this many minutes ago. Default 20. |
 | `plantao.limiteDiario` | integer | no | range 1–1000 | Separate A/C daily cap. Omit to keep; legacy settings fall back to dailyLimit. New default 300. |
@@ -381,12 +494,13 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- search_store_catalog returns installments per product and variant: max is the effective card installment count for one unit at the returned price; minInstallmentCents is the minimum installment in cents when max > 1 (0 means no minimum). Only state the installments returned for the selected product or variant. With max: 1, offer only payment in full (à vista), without installments. Never assume 12 installments or invent missing terms. Quantity and discounts can change the checkout limit.
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
 - Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `test_ai_agent`
@@ -495,12 +609,13 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- search_store_catalog returns installments per product and variant: max is the effective card installment count for one unit at the returned price; minInstallmentCents is the minimum installment in cents when max > 1 (0 means no minimum). Only state the installments returned for the selected product or variant. With max: 1, offer only payment in full (à vista), without installments. Never assume 12 installments or invent missing terms. Quantity and discounts can change the checkout limit.
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
 - Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `get_ai_summary_settings`

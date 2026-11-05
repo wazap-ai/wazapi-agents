@@ -3649,6 +3649,8 @@ Read the complete AI agent configuration, linked knowledge sources and affected 
 | `agentUuid` | uuid | yes | — |
 
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
+- allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
+- storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `get_ai_agent_configuration_context`
@@ -3680,7 +3682,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 | — |
-| `instructions` | string | yes | length 1–20000 | — |
+| `instructions` | string | yes | length 1–24000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3703,6 +3705,8 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `allowedStoreCategoryUuids` | uuid[] | no | 0–100 items | Store categories this agent may sell. Empty means no restriction. Omitted on update preserves the list. |
+| `storeSalesBlockScheduleUuid` | uuid \| null | no | — | Business schedule during which this agent refuses to close a sale. Null means no restriction. Omitted on update preserves it. |
 | `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
@@ -3718,11 +3722,13 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 
 - search_store_catalog returns installments per product and variant: max is the effective card installment count for one unit at the returned price; minInstallmentCents is the minimum installment in cents when max > 1 (0 means no minimum). Only state the installments returned for the selected product or variant. With max: 1, offer only payment in full (à vista), without installments. Never assume 12 installments or invent missing terms. Quantity and discounts can change the checkout limit.
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
-- Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
+- allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
+- storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
+- Instructions accept up to 24,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email, CPF/CNPJ and billing phone) is complete. Ask for the missing fields together and retry the same order; valid data already collected on that order is retained. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `test_ai_agent`
@@ -3741,7 +3747,7 @@ Run one paid, simulated AI turn for an active or inactive agent. No conversation
 | `agentUuid` | uuid | yes | — | — |
 | `messages` | object[] | yes | 1–40 items | — |
 | `contactName` | string | no | length 1–120 | — |
-| `instructionsOverride` | string | no | length 1–12000 | — |
+| `instructionsOverride` | string | no | length 1–24000 | — |
 | `knowledgeSourceUuidsOverride` | uuid[] | no | 0–200 items | Omitted uses agent links. An explicit empty list disables retrieval for this test. |
 | `nowOverride` | string | no | — | ISO 8601 with Z or an explicit UTC offset. Changes only the model context clock. |
 | `messages[].role` | `user` \| `assistant` | yes | — | — |
@@ -3751,7 +3757,7 @@ Run one paid, simulated AI turn for an active or inactive agent. No conversation
 - Calls company BYOK and consumes budget. Records cost and metadata-only audit; 10 tests/minute per company (or lower plan cap), fail closed if limiter is unavailable. No conversation, message, CRM, field, cart, order, payment or notification is created.
 
 - Requires explicit ai_agents:write and settings.general. Same company for agent and all override sources.
-- messages uses role and content and ends in a user message. nowOverride requires ISO 8601 with timezone and only changes the model context, never budgets, audits or rate limits.
+- messages uses role and content and ends in a user message. instructionsOverride accepts at most 24,000 characters for this preview only. nowOverride requires ISO 8601 with timezone and only changes the model context, never budgets, audits or rate limits.
 - Omitted sources use the agent links; an empty override disables retrieval. Historical clock does not rewind knowledge sources or reproduce CRM/P2 fields.
 - Actions and toolTrace are simulated proposals, never proof of a sent message or executed action.
 - status=completed or failed. companyQueryCalls appears in the result and audit with queryUuid/name, sanitized args, completed/failed status, httpStatus, durationMs and errorCode. Only configured categorical enum arguments are retained; free text, personal/credential parameters and unrecognized keys are redacted. Query responses are omitted from toolTrace. A failed turn keeps partial usage and query trace; it is not a successful model test.
@@ -3795,7 +3801,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | --- | --- | --- | --- | --- |
 | `agentUuid` | uuid | yes | — | — |
 | `name` | string | no | length 1–120 | — |
-| `instructions` | string | no | length 1–20000 | — |
+| `instructions` | string | no | length 1–24000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3818,6 +3824,8 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `allowedStoreCategoryUuids` | uuid[] | no | 0–100 items | Store categories this agent may sell. Empty means no restriction. Omitted on update preserves the list. |
+| `storeSalesBlockScheduleUuid` | uuid \| null | no | — | Business schedule during which this agent refuses to close a sale. Null means no restriction. Omitted on update preserves it. |
 | `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
@@ -3833,11 +3841,13 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 
 - search_store_catalog returns installments per product and variant: max is the effective card installment count for one unit at the returned price; minInstallmentCents is the minimum installment in cents when max > 1 (0 means no minimum). Only state the installments returned for the selected product or variant. With max: 1, offer only payment in full (à vista), without installments. Never assume 12 installments or invent missing terms. Quantity and discounts can change the checkout limit.
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
-- Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
+- allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
+- storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
+- Instructions accept up to 24,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email, CPF/CNPJ and billing phone) is complete. Ask for the missing fields together and retry the same order; valid data already collected on that order is retained. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `get_ai_summary_settings`

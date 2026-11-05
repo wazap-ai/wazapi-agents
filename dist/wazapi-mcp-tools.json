@@ -649,7 +649,7 @@
     {
       "name": "list_store_products",
       "category": "store",
-      "summary": "Lists products, filterable by category, active state, text and externalId.",
+      "summary": "Lists products by category, active state, visibility, text or `externalId`.",
       "scope": "store:read",
       "requiresPlan": "storefront",
       "mutates": false,
@@ -703,27 +703,30 @@
     {
       "name": "create_store_product",
       "category": "store",
-      "summary": "Creates a product, optionally with variants.",
-      "scope": "store:write",
-      "requiresPlan": "storefront",
-      "mutates": false,
-      "sideEffects": []
-    },
-    {
-      "name": "update_store_product",
-      "category": "store",
-      "summary": "Updates a product; omitted fields keep their value.",
+      "summary": "Creates a product with optional variants and installments, listed or reserved for assisted sales.",
       "scope": "store:write",
       "requiresPlan": "storefront",
       "mutates": true,
       "sideEffects": [
-        "When `variants` is sent, variants missing from it are deleted."
+        "Creates the product and its variants. `listed` defaults to `true`."
+      ]
+    },
+    {
+      "name": "update_store_product",
+      "category": "store",
+      "summary": "Updates a product, visibility and installments, preserving omitted optional fields.",
+      "scope": "store:write",
+      "requiresPlan": "storefront",
+      "mutates": true,
+      "sideEffects": [
+        "Sending `variants` deletes existing variants missing from the list, including inactive ones.",
+        "`listed=false` removes the product from the storefront and Meta catalog; synchronization removes previous mirrors. Active products remain available for assisted orders and payment links."
       ]
     },
     {
       "name": "list_company_queries",
       "category": "ai_agents",
-      "summary": "list company queries for the active company.",
+      "summary": "Lists configured GET/POST queries in the active company, including post-payment queries.",
       "scope": "ai_agents:read",
       "requiresPlan": "aiAgent",
       "mutates": false,
@@ -732,20 +735,25 @@
     {
       "name": "create_company_query",
       "category": "ai_agents",
-      "summary": "create company query for the active company.",
+      "summary": "Creates a company GET/POST query, including post-payment operations.",
       "scope": "ai_agents:write",
       "requiresPlan": "aiAgent",
-      "mutates": false,
-      "sideEffects": []
+      "mutates": true,
+      "sideEffects": [
+        "Saves configuration and writes an audit entry. Queries start inactive by default; creation does not execute the HTTP request."
+      ]
     },
     {
       "name": "update_company_query",
       "category": "ai_agents",
-      "summary": "update company query for the active company.",
+      "summary": "Updates a company query configuration and parameter sources.",
       "scope": "ai_agents:write",
       "requiresPlan": "aiAgent",
-      "mutates": false,
-      "sideEffects": []
+      "mutates": true,
+      "sideEffects": [
+        "Saves configuration and writes an audit entry. Active query changes apply on the next permitted agent call, including ongoing conversations.",
+        "Supplied arrays replace existing ones. When sending `parameters`, include every parameter to keep."
+      ]
     },
     {
       "name": "delete_company_query",
@@ -759,11 +767,14 @@
     {
       "name": "test_company_query",
       "category": "ai_agents",
-      "summary": "test company query for the active company.",
+      "summary": "Executes a GET/POST query without AI, with optional contact context.",
       "scope": "ai_agents:write",
       "requiresPlan": "aiAgent",
-      "mutates": false,
-      "sideEffects": []
+      "mutates": true,
+      "sideEffects": [
+        "Executes the configured HTTP request even when the query is inactive. POST can create or change external records; this is a real request.",
+        "Audits status, duration, size and error code, without arguments or response text. Uses no AI."
+      ]
     },
     {
       "name": "list_ai_agent_guard_rules",
@@ -809,6 +820,24 @@
       "summary": "Read AI duty settings",
       "scope": "ai_agents:read",
       "requiresPlan": "aiAgent",
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "dismiss_ai_suggestions",
+      "category": "ai_agents",
+      "summary": "Dismiss open AI suggestions in bulk",
+      "scope": "conversations:write",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_ai_suggestion_counts",
+      "category": "ai_agents",
+      "summary": "Count open AI suggestions by seller",
+      "scope": "conversations:read",
+      "requiresPlan": null,
       "mutates": false,
       "sideEffects": []
     },
@@ -962,6 +991,17 @@
       "mutates": true,
       "sideEffects": [
         "Goes live immediately for every inbound message of the company."
+      ]
+    },
+    {
+      "name": "update_keyword",
+      "category": "flows",
+      "summary": "Edita um gatilho da empresa ativa e limpa o cache de gatilhos.",
+      "scope": "flows:write",
+      "requiresPlan": null,
+      "mutates": true,
+      "sideEffects": [
+        "A configuração vale nas próximas mensagens da empresa."
       ]
     },
     {

@@ -18,6 +18,7 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `execute_flow` — Starts an active flow for one contact right now, without waiting for a keyword.
 - `list_keywords` — Lists the keyword triggers and the default flow of each kind.
 - `create_keyword` — Makes a flow start when an inbound message matches a keyword.
+- `update_keyword` — Edita um gatilho da empresa ativa e limpa o cache de gatilhos.
 - `delete_keyword` — Removes a keyword trigger; the flow stays as it is.
 - `set_default_flow` — Chooses the flow for first contact, for unmatched messages or for storefront orders.
 - `get_flow_errors` — Lists a flow's errors from the last 7 days, block by block.
@@ -53,7 +54,7 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `send_product` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
 - collect_input accepts phone_br: strip non-digits and leading zeros, require 10 or 11 national digits (area code and number, without 55), and save with prefix 55. The existing phone type is unchanged. send_list supports Instagram and Messenger as numbered text plus quick replies: at most 10 items, titles up to 20 characters. WhatsApp keeps native lists and 24-character titles. Webchat remains unsupported.
 - Use cart for a shared draft without reserving stock. Checkout mode cart takes cartUuid and waits for a link, order or payment; the customer chooses payment in the storefront. Existing order mode remains unchanged.
@@ -180,7 +181,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `send_product` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |
@@ -194,6 +195,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 
 - This is not a patch. Call `get_flow` first and send the full graph back with your changes applied, or you will silently destroy the rest of the flow.
 - Limits: 1 to 300 nodes, at most 800 edges.
+- Na ação add_internal_note, data.mentionUserUuids é opcional: até 10 UUIDs de pessoas da empresa, descobertos por get_flow_builder_context ou list_agents. Usuário de outra empresa é recusado. Pessoa removida ou inativa depois é ignorada com log e a nota é gravada. Usa a notificação de menção do inbox; simulação não menciona nem notifica. A mesma nota no mesmo bloco e sessão só notifica uma vez. Sem a lista, mantém o comportamento anterior.
 - For http_request, mappingsOn: "success" saves responseMappings and saveResponseTo only on HTTP 2xx; omitted or "always" keeps mapping error responses too. Failure routing and notices stay unchanged.
 - Each responseMappings item accepts skipEmpty: true to keep the previous variable when sourcePath resolves to null, a missing value or an empty string. The default is false; 0 and false are not empty. Mapping select fields still accepts their labels.
 - Cart nodes have success/failure exits. Checkout mode cart requires pronto, pedido_criado, pago, falha, expirado and cancelado exits. Saving a graph does not create a cart or payment.
@@ -216,7 +218,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `send_product` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |
@@ -341,9 +343,11 @@ Lists the keyword triggers and the default flow of each kind.
 
 **When to use.** Before creating a trigger, and to answer "why does this flow never start?": an active flow with no trigger and no default slot never runs on its own.
 
-List the keyword triggers that start flows (keyword, match type, flow) and the default flows per kind (welcome, default_reply, store_order).
+List the keyword triggers that start flows (keyword, match type, flow) and the default flows per kind (welcome, default_reply, store_order, store_order_paid).
 
 _No arguments._
+
+- Inclui runWhenAssigned em cada gatilho. Use update_keyword para editar a opção.
 
 #### `create_keyword`
 
@@ -355,16 +359,18 @@ Makes a flow start when an inbound message matches a keyword.
 
 Make a flow start when an inbound message matches a keyword. Without a trigger or a default flow, an active flow never starts on its own.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `keyword` | string | yes | length 1–120 |
-| `matchType` | `exact` \| `starts_with` \| `contains` | yes | — |
-| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
-| `flowUuid` | uuid | yes | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `keyword` | string | yes | length 1–120 | — |
+| `matchType` | `exact` \| `starts_with` \| `contains` | yes | — | — |
+| `runWhenAssigned` | boolean | no | — | Com atendente, permite apenas clique real com título exato. Padrão: false. Preserva a atribuição. |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
+| `flowUuid` | uuid | yes | — | — |
 
 **Side effects.**
 - Goes live immediately for every inbound message of the company.
 
+- runWhenAssigned é false por padrão. Quando true, conversa atribuída inicia somente por clique real de botão com título exato, preservando o atendente. Texto digitado não autoriza essa execução.
 - supportedEntries is an optional entry-kind list; empty means all. The target flow must also allow the entry.
 - Match is case-insensitive. `exact` is the safe default; `contains` catches words inside longer messages and can steal traffic from other flows.
 - The same keyword with the same match type cannot exist twice.
@@ -376,6 +382,30 @@ Make a flow start when an inbound message matches a keyword. Without a trigger o
   "flowUuid": "<flow uuid>"
 }
 ```
+
+#### `update_keyword`
+
+Edita um gatilho da empresa ativa e limpa o cache de gatilhos.
+
+**Scope:** `flows:write`
+
+**When to use.** Para alterar palavra, fluxo, entradas ou runWhenAssigned de um gatilho existente.
+
+Edita o gatilho da empresa ativa. Campos omitidos são preservados. runWhenAssigned permite clique real com título exato em conversa atribuída, sem trocar o atendente.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `keywordUuid` | uuid | yes | — |
+| `keyword` | string | no | length 1–120 |
+| `matchType` | `exact` \| `starts_with` \| `contains` | no | — |
+| `runWhenAssigned` | boolean | no | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
+| `flowUuid` | uuid | no | — |
+
+**Side effects.**
+- A configuração vale nas próximas mensagens da empresa.
+
+- Use list_keywords para obter keywordUuid. Campos omitidos são preservados.
 
 #### `delete_keyword`
 
@@ -399,19 +429,21 @@ Chooses the flow for first contact, for unmatched messages or for storefront ord
 
 **Scope:** `flows:write`
 
-**When to use.** When the user wants a flow to greet every new contact (`welcome`), answer anything no trigger caught (`default_reply`) or confirm store orders (`store_order`).
+**When to use.** When the user wants a flow to greet every new contact (`welcome`), answer anything no trigger caught (`default_reply`), handle new store orders (`store_order`) or run post-sale steps after payment (`store_order_paid`).
 
-Choose the flow that runs for a kind of event: welcome (first contact), default_reply (no trigger matched) or store_order (storefront order). Pass flowUuid null to turn the slot off.
+Choose the flow that runs for a kind of event: welcome (first contact), default_reply (no trigger matched), store_order (storefront order) or store_order_paid (after payment confirmation and its status notice). Pass flowUuid null to turn the slot off.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `kind` | `welcome` \| `default_reply` \| `store_order` | yes | — |
+| `kind` | `welcome` \| `default_reply` \| `store_order` \| `store_order_paid` | yes | — |
 | `flowUuid` | uuid \| null | yes | — |
 
 **Side effects.**
 - Replaces the flow that held the slot before.
 
-- `store_order` needs the store permission; the other kinds need keywords.
+- `store_order` and `store_order_paid` need the store permission; the other kinds need keywords. Store kinds never route inbound messages.
+- `store_order_paid` runs once per order, after the native payment status or optional text notice, with a short delay and the same 24h-window retry ladder as store_order. Configure it in Store → Order automation.
+- Both store kinds expose {{vars.order.ref}}, total, total_cents, link, firstItemName, items_text, payment_method, payment_method_label, payment_method_detail, payment_method_detail_label, customer_name, pix_key and payment_link under vars.order. Payment detail uses the paid gateway attempt (Pix, card or bank slip), falling back to the order method. {{contact.name}} is the contact name.
 
 #### `get_flow_errors`
 

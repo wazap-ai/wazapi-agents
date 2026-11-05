@@ -10,14 +10,14 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `save_store_coupon` — Creates, updates, pauses or archives a coupon.
 - `get_store_discount_policy` — Reads an AI agent discount policy.
 - `save_store_discount_policy` — Configures an agent discount range and eligibility.
-- `list_store_products` — Lists products, filterable by category, active state, text and externalId.
+- `list_store_products` — Lists products by category, active state, visibility, text or `externalId`.
 - `get_store_product` — Fetches one product with its variants.
 - `list_store_orders` — Lists store orders, filterable by status.
 - `get_store_order` — Fetches one order with its item snapshot.
 - `get_store_metrics` — Returns sales metrics for a period.
 - `update_store_order_status` — Advances an order along its status machine.
-- `create_store_product` — Creates a product, optionally with variants.
-- `update_store_product` — Updates a product; omitted fields keep their value.
+- `create_store_product` — Creates a product with optional variants and installments, listed or reserved for assisted sales.
+- `update_store_product` — Updates a product, visibility and installments, preserving omitted optional fields.
 - `create_store_category` — Creates a storefront category.
 - `update_store_category` — Renames or repositions a storefront category.
 - `delete_store_category` — Deletes a storefront category; its products stay, without a category.
@@ -51,6 +51,7 @@ Return the current storefront configuration, links, shipping options, categories
 
 _No arguments._
 
+- appearance includes the saved draft when hasDraft=true. checkoutIdentity contains logoUrl, legalName and document (validated CNPJ/CPF, display only, no uniqueness); empty fields inherit the company on checkout/payment screens. It never changes company registration or gateway credentials. Edit and publish in Store > Templates; this tool is read-only.
 - Category uuids appear only here — a product is filed by one of them.
 - Every price, shipping cost and total in the store is in cents.
 
@@ -157,12 +158,12 @@ Configure AI discount limits with explicit store:discounts scope and financial p
 
 #### `list_store_products`
 
-Lists products, filterable by category, active state, text and externalId.
+Lists products by category, active state, visibility, text or `externalId`.
 
 **Scope:** `store:read`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** To find a product uuid or to audit the catalogue.
+**When to use.** To find a product UUID or check the company catalog.
 
 List products in the company store with optional category, active and search filters
 
@@ -172,12 +173,23 @@ List products in the company store with optional category, active and search fil
 | `externalId` | string | no | length 0–120 |
 | `categoryUuid` | uuid | no | — |
 | `active` | boolean | no | — |
+| `listed` | boolean | no | — |
 | `page` | integer | no | min 1 |
 | `limit` | integer | no | range 1–50 |
 
-- `externalId` is the product id in the customer's own platform (ERP, e-commerce); pass it for an exact lookup when the user refers to a product by that id.
-- Inactive products are still returned; they simply do not appear on the storefront.
-- This is the Wazapi storefront catalogue. The Meta catalogue behind `send_product_message` is a different list — see `get_catalog_status`.
+- `externalId` is the product ID in the customer platform, such as an ERP or online store. Use it for an exact lookup by that link.
+- `active` and `listed` are independent. Without these filters, results include inactive and unlisted products. Use `active=true` and `listed=false` to find active products reserved for assisted sales.
+- `listed=false` excludes the product from the public storefront, search, highlights and Meta catalog. Assisted orders and payment links remain available while it is active.
+- Responses include `installmentsMax` and `minInstallmentCents`, corresponding to `installments_max` and `min_installment_cents`. `null` inherits the store default; a minimum of `0` removes the installment minimum. Installments are always interest-free.
+- This is the Wazapi store catalog. Use `get_catalog_status` to check synchronization and which products can be sent with `send_product_message`.
+
+```json
+{
+  "active": true,
+  "listed": false,
+  "limit": 20
+}
+```
 
 #### `get_store_product`
 
@@ -271,81 +283,120 @@ Move a store order to the next allowed status (novo → confirmado/cancelado, co
 
 #### `create_store_product`
 
-Creates a product, optionally with variants.
+Creates a product with optional variants and installments, listed or reserved for assisted sales.
 
 **Scope:** `store:write`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** To add an item to the storefront.
+**When to use.** To add a company product, including one outside the public storefront.
 
 Create a new product in the company store, optionally with variants
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `name` | string | yes | length 1–140 |
-| `description` | string | no | length 0–2000 |
-| `categoryUuid` | uuid | no | — |
-| `priceCents` | integer | yes | range 0–100000000 |
-| `promoPriceCents` | integer | no | range 0–100000000 |
-| `costCents` | integer | no | range 0–100000000 |
-| `taxPercent` | number | no | range 0–100 |
-| `markupPercent` | number | no | range 0–10000 |
-| `externalId` | string \| null | no | — |
-| `categoryExternalId` | string \| null | no | — |
-| `highlighted` | boolean | no | — |
-| `trackStock` | boolean | no | — |
-| `stock` | integer | no | min 0 |
-| `active` | boolean | no | — |
-| `position` | integer | no | min 0 |
-| `variants` | object[] | no | 0–50 items |
-| `variants[].label` | string | yes | length 1–80 |
-| `variants[].priceCents` | integer | no | range 0–100000000 |
-| `variants[].stock` | integer | no | min 0 |
-| `variants[].active` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | yes | length 1–140 | — |
+| `description` | string | no | length 0–2000 | — |
+| `categoryUuid` | uuid | no | — | — |
+| `priceCents` | integer | yes | range 0–100000000 | — |
+| `promoPriceCents` | integer | no | range 0–100000000 | — |
+| `installmentsMax` | integer \| null | no | — | Interest-free maximum; null inherits the store default. |
+| `minInstallmentCents` | integer \| null | no | — | Minimum installment in cents; null inherits R$ 5, zero disables the minimum. |
+| `costCents` | integer | no | range 0–100000000 | — |
+| `taxPercent` | number | no | range 0–100 | — |
+| `markupPercent` | number | no | range 0–10000 | — |
+| `externalId` | string \| null | no | — | — |
+| `categoryExternalId` | string \| null | no | — | — |
+| `listed` | boolean | no | — | False hides from the public storefront and Meta catalog; orders and payment links remain available. Default true on create; omission preserves on update. |
+| `highlighted` | boolean | no | — | — |
+| `trackStock` | boolean | no | — | — |
+| `stock` | integer | no | min 0 | — |
+| `active` | boolean | no | — | — |
+| `position` | integer | no | min 0 | — |
+| `variants` | object[] | no | 0–50 items | — |
+| `variants[].label` | string | yes | length 1–80 | — |
+| `variants[].priceCents` | integer | no | range 0–100000000 | — |
+| `variants[].stock` | integer | no | min 0 | — |
+| `variants[].active` | boolean | no | — | — |
 
-- All money fields are in cents.
-- `externalId` links the product to the customer's own platform; `categoryExternalId` picks the category by that same kind of id (unknown id is an error, unlike an unknown `categoryUuid`).
+**Side effects.**
+- Creates the product and its variants. `listed` defaults to `true`.
+
+- All money values are in cents. MCP fields `installmentsMax` and `minInstallmentCents` map to product fields `installments_max` and `min_installment_cents`.
+- `installmentsMax` accepts 1 to 12 interest-free installments. Omission or `null` inherits the store limit. Omitting `minInstallmentCents` or setting it to `null` inherits the 500-cent minimum; `0` disables only that minimum.
+- Mixed orders use the lowest limit allowed by their lines, based on net item value. Shipping does not increase the installment limit. New orders store the policy in their item snapshot.
+- `listed=false` keeps assisted orders and payment links available for an active product, while excluding it from the storefront, search, highlights and Meta catalog. It does not deactivate the product. Do not use `send_product_message` for an unlisted product.
+- `externalId` links the product to the customer platform; `categoryExternalId` selects the category by its external ID. An unknown external category ID is an error, unlike an unknown `categoryUuid`.
+
+```json
+{
+  "name": "Example product",
+  "priceCents": 12000,
+  "active": true,
+  "listed": false,
+  "installmentsMax": 6,
+  "minInstallmentCents": 500
+}
+```
 
 #### `update_store_product`
 
-Updates a product; omitted fields keep their value.
+Updates a product, visibility and installments, preserving omitted optional fields.
 
 **Scope:** `store:write`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** To change price, stock or description.
+**When to use.** To change price, stock, description, public visibility or interest-free installments.
 
 Update an existing store product. Omitted fields keep their current value. When `variants` is sent it replaces the list: variants with a known uuid are updated, new ones are created and existing variants missing from it are removed (including inactive ones — read them with get_store_product first). Omit `variants` to leave them untouched.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `productUuid` | uuid | yes | — |
-| `name` | string | yes | length 1–140 |
-| `description` | string | no | length 0–2000 |
-| `categoryUuid` | uuid | no | — |
-| `priceCents` | integer | yes | range 0–100000000 |
-| `promoPriceCents` | integer | no | range 0–100000000 |
-| `costCents` | integer | no | range 0–100000000 |
-| `taxPercent` | number | no | range 0–100 |
-| `markupPercent` | number | no | range 0–10000 |
-| `externalId` | string \| null | no | — |
-| `categoryExternalId` | string \| null | no | — |
-| `highlighted` | boolean | no | — |
-| `trackStock` | boolean | no | — |
-| `stock` | integer | no | min 0 |
-| `active` | boolean | no | — |
-| `position` | integer | no | min 0 |
-| `variants` | object[] | no | 0–50 items |
-| `variants[].uuid` | uuid | no | — |
-| `variants[].label` | string | yes | length 1–80 |
-| `variants[].priceCents` | integer | no | range 0–100000000 |
-| `variants[].stock` | integer | no | min 0 |
-| `variants[].active` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `productUuid` | uuid | yes | — | — |
+| `name` | string | yes | length 1–140 | — |
+| `description` | string | no | length 0–2000 | — |
+| `categoryUuid` | uuid | no | — | — |
+| `priceCents` | integer | yes | range 0–100000000 | — |
+| `promoPriceCents` | integer | no | range 0–100000000 | — |
+| `installmentsMax` | integer \| null | no | — | Interest-free maximum; null inherits the store default. |
+| `minInstallmentCents` | integer \| null | no | — | Minimum installment in cents; null inherits R$ 5, zero disables the minimum. |
+| `costCents` | integer | no | range 0–100000000 | — |
+| `taxPercent` | number | no | range 0–100 | — |
+| `markupPercent` | number | no | range 0–10000 | — |
+| `externalId` | string \| null | no | — | — |
+| `categoryExternalId` | string \| null | no | — | — |
+| `listed` | boolean | no | — | False hides from the public storefront and Meta catalog; orders and payment links remain available. Default true on create; omission preserves on update. |
+| `highlighted` | boolean | no | — | — |
+| `trackStock` | boolean | no | — | — |
+| `stock` | integer | no | min 0 | — |
+| `active` | boolean | no | — | — |
+| `position` | integer | no | min 0 | — |
+| `variants` | object[] | no | 0–50 items | — |
+| `variants[].uuid` | uuid | no | — | — |
+| `variants[].label` | string | yes | length 1–80 | — |
+| `variants[].priceCents` | integer | no | range 0–100000000 | — |
+| `variants[].stock` | integer | no | min 0 | — |
+| `variants[].active` | boolean | no | — | — |
 
 **Side effects.**
-- When `variants` is sent, variants missing from it are deleted.
+- Sending `variants` deletes existing variants missing from the list, including inactive ones.
+- `listed=false` removes the product from the storefront and Meta catalog; synchronization removes previous mirrors. Active products remain available for assisted orders and payment links.
 
-- Omit `variants` to leave them untouched. To change them, call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.
+- The schema requires `productUuid`, `name` and `priceCents` even for a small change. Read `get_store_product` first and preserve current values you do not want to change.
+- Omitting `variants` preserves them. To change them, return every variant to keep, each with its `uuid`.
+- `installmentsMax` and `minInstallmentCents` map to `installments_max` and `min_installment_cents`. Omission preserves saved values; `null` restores store inheritance. `installmentsMax` accepts 1 to 12 interest-free installments. `minInstallmentCents` is in cents: `null` inherits 500 and `0` removes only the minimum.
+- Mixed orders use the lowest line limit on net item value, without financing shipping. Product changes do not rewrite installment snapshots in existing orders.
+- Omitting `listed` preserves visibility. `listed` and `active` are independent. Unlisted products are also excluded from search and highlights. Inactive products are unavailable for new orders.
+
+```json
+{
+  "productUuid": "00000000-0000-4000-8000-000000000001",
+  "name": "Example product",
+  "priceCents": 12000,
+  "listed": false,
+  "installmentsMax": null,
+  "minInstallmentCents": 0
+}
+```
 
 #### `create_store_category`
 

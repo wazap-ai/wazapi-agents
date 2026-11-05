@@ -68,8 +68,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
 | `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
-| `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
-| `conversations:write` | `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
+| `conversations:read` | `get_ai_suggestion_counts`, `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
+| `conversations:write` | `dismiss_ai_suggestions`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
 | `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
 | `data:delete` ⚠️ | `delete_company_query`, `delete_keyword`, `delete_tag`, `delete_custom_field`, `delete_crm_stage`, `delete_store_category`, `delete_flow`, `delete_contact`, `delete_store_product`, `archive_crm_opportunity`, `delete_whatsapp_template`, `delete_knowledge_source`, `delete_group` |
@@ -77,7 +77,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `entries:write` ⚠️ | `update_entry_settings` |
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors`, `list_business_schedules` |
-| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
+| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `update_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
 | `groups:read` | `get_group`, `get_group_distribution_report`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
@@ -193,7 +193,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Flows** — `reference/flows.md`
 
-`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `get_stale_session_settings`, `update_stale_session_settings`, `execute_flow`, `list_keywords`, `create_keyword`, `delete_keyword`, `set_default_flow`, `get_flow_errors`, `list_business_schedules`, `create_business_schedule`, `update_business_schedule`, `update_flow`, `delete_flow`
+`list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `create_flow`, `update_flow_graph`, `validate_flow_graph`, `update_flow_status`, `get_stale_session_settings`, `update_stale_session_settings`, `execute_flow`, `list_keywords`, `create_keyword`, `update_keyword`, `delete_keyword`, `set_default_flow`, `get_flow_errors`, `list_business_schedules`, `create_business_schedule`, `update_business_schedule`, `update_flow`, `delete_flow`
 
 **WhatsApp channel and templates** — `reference/whatsapp.md`
 
@@ -209,7 +209,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **AI agents** — `reference/ai-agents.md`
 
-`list_company_queries`, `create_company_query`, `update_company_query`, `delete_company_query`, `test_company_query`, `list_ai_agent_guard_rules`, `save_ai_agent_guard_rule`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_duty_settings`, `update_ai_duty_settings`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `test_ai_agent`, `preview_ai_summary`, `update_ai_agent`, `get_ai_summary_settings`, `get_ai_summary_costs`, `update_ai_summary_settings`
+`list_company_queries`, `create_company_query`, `update_company_query`, `delete_company_query`, `test_company_query`, `list_ai_agent_guard_rules`, `save_ai_agent_guard_rule`, `list_ai_agent_guard_hits`, `list_ai_agents`, `get_ai_duty_settings`, `dismiss_ai_suggestions`, `get_ai_suggestion_counts`, `update_ai_duty_settings`, `get_ai_agent_usage`, `get_ai_agent`, `get_ai_agent_configuration_context`, `create_ai_agent`, `test_ai_agent`, `preview_ai_summary`, `update_ai_agent`, `get_ai_summary_settings`, `get_ai_summary_costs`, `update_ai_summary_settings`
 
 **Knowledge base** — `reference/knowledge.md`
 

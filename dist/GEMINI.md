@@ -65,8 +65,8 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
 | `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
-| `conversations:read` | `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
-| `conversations:write` | `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
+| `conversations:read` | `get_ai_suggestion_counts`, `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
+| `conversations:write` | `dismiss_ai_suggestions`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
 | `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
 | `data:delete` ⚠️ | `delete_company_query`, `delete_keyword`, `delete_tag`, `delete_custom_field`, `delete_crm_stage`, `delete_store_category`, `delete_flow`, `delete_contact`, `delete_store_product`, `archive_crm_opportunity`, `delete_whatsapp_template`, `delete_knowledge_source`, `delete_group` |
@@ -74,7 +74,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `entries:write` ⚠️ | `update_entry_settings` |
 | `flows:execute` | `execute_flow` |
 | `flows:read` | `list_flow_block_types`, `get_flow_block_schema`, `get_flow_builder_context`, `list_flows`, `get_flow`, `validate_flow_graph`, `list_keywords`, `get_flow_errors`, `list_business_schedules` |
-| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
+| `flows:write` | `create_flow`, `update_flow_graph`, `update_flow_status`, `create_keyword`, `update_keyword`, `set_default_flow`, `create_business_schedule`, `update_business_schedule`, `update_flow` |
 | `groups:read` | `get_group`, `get_group_distribution_report`, `list_groups` |
 | `groups:write` ⚠️ | `create_group`, `update_group` |
 | `knowledge:read` | `list_knowledge_sources`, `search_knowledge` |
@@ -285,7 +285,7 @@ Read group configuration and membership.
 
 **Scope:** `groups:read`
 
-**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options (distributionStrategy, queueWhenUnavailable, distributionScheduleUuid, queueBatchPerAgent, queueOpeningDelayMinutes, queueMaxPerAgent, queueOpenWindowFirst).
+**When to use.** Before editing a group, inspect its settings, memberUuids, supervisorUuids, phoneNumbers and distribution options, especially queuePolicy, queueWhenUnavailable, distributionScheduleUuid and queueOpeningDelayMinutes.
 
 Read support-group configuration, member and supervisor UUIDs and phone restrictions. Requires settings.team.
 
@@ -307,12 +307,13 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
+| `queuePolicy` | object | no | — | — |
 | `name` | string | yes | length 1–100 | — |
 | `memberUuids` | uuid[] | no | 0–1000 items | — |
 | `supervisorUuids` | uuid[] | no | 0–1000 items | — |
 | `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
 | `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
-| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueMaxPerAgent` | integer \| null | no | — | Legacy setting retained for compatibility. The sales queue has no per-person ceiling. |
 | `queueWhenUnavailable` | boolean | no | — | — |
 | `queueOpenWindowFirst` | boolean | no | — | — |
 | `distributionScheduleUuid` | uuid \| null | no | — | — |
@@ -333,6 +334,16 @@ Create a support group and its CRM pipeline. Requires explicit groups:write and 
 | `inactivityWarningMinutes` | integer | no | range 1–43200 | — |
 | `inactivityWarningMessage` | string | no | length 0–1000 | — |
 | `respectBusinessHours` | boolean | no | — | — |
+| `queuePolicy.rosterDays` | integer | no | range 1–365 | — |
+| `queuePolicy.historyDays` | integer | no | range 1–365 | — |
+| `queuePolicy.deadlinePercentile` | integer | no | range 1–99 | — |
+| `queuePolicy.deadlineGraceMinutes` | integer | no | range 0–1440 | — |
+| `queuePolicy.reservationMaxMinutesAfterOpening` | integer | no | range 0–1440 | — |
+| `queuePolicy.minimumHistory` | integer | no | range 1–365 | — |
+| `queuePolicy.doseSize` | integer | no | range 1–2147483647 | — |
+| `queuePolicy.doseIntervalMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.urgentWindowMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.historyStartDate` | string \| null | no | — | — |
 
 **Side effects.**
 - Creates the group and CRM pipeline, saves membership and audits the change. Membership affects access and conversation distribution.
@@ -352,12 +363,13 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
+| `queuePolicy` | object | no | — | — |
 | `name` | string | no | length 1–100 | — |
 | `memberUuids` | uuid[] | no | 0–1000 items | — |
 | `supervisorUuids` | uuid[] | no | 0–1000 items | — |
 | `distributionStrategy` | `least_busy` \| `round_robin` \| `random` \| `balanced_daily` \| null | no | — | — |
 | `queueOpeningDelayMinutes` | integer | no | range 0–1440 | Minutes the queue waits after schedule opening; default 15, zero disables. |
-| `queueMaxPerAgent` | integer \| null | no | — | Maximum active queue conversations per person; null removes this ceiling. |
+| `queueMaxPerAgent` | integer \| null | no | — | Legacy setting retained for compatibility. The sales queue has no per-person ceiling. |
 | `queueWhenUnavailable` | boolean | no | — | — |
 | `queueOpenWindowFirst` | boolean | no | — | — |
 | `distributionScheduleUuid` | uuid \| null | no | — | — |
@@ -379,13 +391,23 @@ Patch group configuration and membership. Omitted fields are preserved; supplied
 | `inactivityWarningMessage` | string | no | length 0–1000 | — |
 | `respectBusinessHours` | boolean | no | — | — |
 | `groupUuid` | uuid | yes | — | — |
+| `queuePolicy.rosterDays` | integer | no | range 1–365 | — |
+| `queuePolicy.historyDays` | integer | no | range 1–365 | — |
+| `queuePolicy.deadlinePercentile` | integer | no | range 1–99 | — |
+| `queuePolicy.deadlineGraceMinutes` | integer | no | range 0–1440 | — |
+| `queuePolicy.reservationMaxMinutesAfterOpening` | integer | no | range 0–1440 | — |
+| `queuePolicy.minimumHistory` | integer | no | range 1–365 | — |
+| `queuePolicy.doseSize` | integer | no | range 1–2147483647 | — |
+| `queuePolicy.doseIntervalMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.urgentWindowMinutes` | integer | no | range 1–1440 | — |
+| `queuePolicy.historyStartDate` | string \| null | no | — | — |
 
 **Side effects.**
 - Saves and audits group settings and membership. Removed members lose CRM assignments within this group.
 
 - Requires groups:write and settings.team. The sensitive write scope must be granted explicitly; broad mcp does not include it.
-- Distribution is opt-in: balanced_daily chooses the eligible person who received least today in this group; queueWhenUnavailable retries each minute in distributionScheduleUuid business hours. queueOpenWindowFirst defaults to true: open 24-hour inbound windows first, FIFO within each block; false retains FIFO. Window is per conversation, by provider_timestamp with created_at fallback, computed once per round. Closed windows remain eligible when no open window waits, without an age cap; continuous open arrivals can defer them. queueBatchPerAgent null means no per-person batch cap. Explicit flow strategy overrides the group. Null clears strategy, schedule or batch. Use schedule UUIDs from this company only. Disabling the queue cancels waiting entries at the next sweep without assigning them; it never replays past waiting conversations.
-- Accumulated queue rounds rotate eligible members while respecting balanced_daily. queueBatchPerAgent caps both the minute batch and still-active queue deliveries awaiting the first successful human reply; a new minute does not reset that pending capacity. queueOpeningDelayMinutes defaults to 15 after each scheduled opening (0 disables; without a schedule no wait). queueMaxPerAgent caps active queue conversations per person, including answered ones; null clears that separate ceiling. Omitted fields remain unchanged. Operational changes require explicit human authorization.
+- queueWhenUnavailable enables the sales queue. queuePolicy stores rosterDays=7, historyDays=30, deadlinePercentile=75, deadlineGraceMinutes=30, reservationMaxMinutesAfterOpening=1440 (0..1440; zero disables offline reservation), minimumHistory=5, doseSize=5, doseIntervalMinutes=10 and urgentWindowMinutes=120 by default. Optional historyStartDate excludes partial measurement days. Read get_group before updating; omitted policy keys retain their values. Use a schedule from this company. Disabling cancels pending tickets at the next sweep without assigning them.
+- Weekly schedules use first observed online per company day, separate weekday and Saturday median/percentile. Opening reserves equal stock shares for scheduled members seen in the last rosterDays. Offline shares release after the historical deadline or at opening plus reservationMaxMinutesAfterOpening, whichever comes first, equally among online members. Opening is the first schedule start plus queueOpeningDelayMinutes, or local midnight without a schedule; lunch never restarts the reservation clock. Late sellers can receive future leads; history remains intact. Members without enough history have no offline reservation and enter daily balance at the group mean when they first come online, with a fixed daily offset. Online members receive stock in doses without a human-reply gate or conversation ceiling. Priority: Meta window still open with less than urgentWindowMinutes remaining, newest business-hour day leads balanced by distinct daily receipts (including manual), then reserved stock FIFO. queueOpeningDelayMinutes still applies. queueBatchPerAgent, queueMaxPerAgent and queueOpenWindowFirst are legacy settings ignored by this queue. Operational changes require explicit human authorization.
 - waitAlertMinutes only changes the visual waiting alert; it never transfers a conversation. Null clears it, omission preserves it, and the inactivity limit is used as a fallback only when transferOnInactivity is enabled.
 
 #### `get_agent`
@@ -1585,7 +1607,7 @@ Return the detailed schema, field requirements, and constraints for one Wazapi f
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
+| `blockType` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `send_product` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — |
 
 - collect_input accepts phone_br: strip non-digits and leading zeros, require 10 or 11 national digits (area code and number, without 55), and save with prefix 55. The existing phone type is unchanged. send_list supports Instagram and Messenger as numbered text plus quick replies: at most 10 items, titles up to 20 characters. WhatsApp keeps native lists and 24-character titles. Webchat remains unsupported.
 - Use cart for a shared draft without reserving stock. Checkout mode cart takes cartUuid and waits for a link, order or payment; the customer chooses payment in the storefront. Existing order mode remains unchanged.
@@ -1712,7 +1734,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `send_product` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |
@@ -1726,6 +1748,7 @@ Replace the full node and edge graph of an existing Wazapi flow after validating
 
 - This is not a patch. Call `get_flow` first and send the full graph back with your changes applied, or you will silently destroy the rest of the flow.
 - Limits: 1 to 300 nodes, at most 800 edges.
+- Na ação add_internal_note, data.mentionUserUuids é opcional: até 10 UUIDs de pessoas da empresa, descobertos por get_flow_builder_context ou list_agents. Usuário de outra empresa é recusado. Pessoa removida ou inativa depois é ignorada com log e a nota é gravada. Usa a notificação de menção do inbox; simulação não menciona nem notifica. A mesma nota no mesmo bloco e sessão só notifica uma vez. Sem a lista, mantém o comportamento anterior.
 - For http_request, mappingsOn: "success" saves responseMappings and saveResponseTo only on HTTP 2xx; omitted or "always" keeps mapping error responses too. Failure routing and notices stay unchanged.
 - Each responseMappings item accepts skipEmpty: true to keep the previous variable when sourcePath resolves to null, a missing value or an empty string. The default is false; 0 and false are not empty. Mapping select fields still accepts their labels.
 - Cart nodes have success/failure exits. Checkout mode cart requires pronto, pedido_criado, pago, falha, expirado and cancelado exits. Saving a graph does not create a cart or payment.
@@ -1748,7 +1771,7 @@ Validate a candidate node and edge graph for an existing Wazapi flow without per
 | `nodes` | object[] | yes | 1–300 items | — |
 | `edges` | object[] | yes | 0–800 items | — |
 | `nodes[].key` | string | yes | length 1–120 | — |
-| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
+| `nodes[].type` | `starting_block` \| `send_text` \| `send_template` \| `send_sms` \| `send_buttons` \| `collect_input` \| `condition` \| `action` \| `delay` \| `go_to_flow` \| `http_request` \| `send_list` \| `whatsapp_form` \| `send_media` \| `go_to_node` \| `assign_agent` \| `end_flow` \| `note` \| `random_branch` \| `split_test` \| `send_reaction` \| `send_location` \| `send_product` \| `notify_webhook` \| `track_event` \| `create_order` \| `cart` \| `discount` \| `store_link` \| `checkout` \| `send_email` \| `openai_assistant` \| `wait_for_event` \| `business_hours` \| `ai_agent` | yes | — | — |
 | `nodes[].position` | object | yes | — | — |
 | `nodes[].data` | object | no | — | Block configuration from get_flow_block_schema. http_request: mappingsOn is success or always (default); responseMappings items have sourcePath, variable and optional skipEmpty (boolean, default false). |
 | `edges[].source` | string | yes | length 1–120 | — |
@@ -1873,9 +1896,11 @@ Lists the keyword triggers and the default flow of each kind.
 
 **When to use.** Before creating a trigger, and to answer "why does this flow never start?": an active flow with no trigger and no default slot never runs on its own.
 
-List the keyword triggers that start flows (keyword, match type, flow) and the default flows per kind (welcome, default_reply, store_order).
+List the keyword triggers that start flows (keyword, match type, flow) and the default flows per kind (welcome, default_reply, store_order, store_order_paid).
 
 _No arguments._
+
+- Inclui runWhenAssigned em cada gatilho. Use update_keyword para editar a opção.
 
 #### `create_keyword`
 
@@ -1887,16 +1912,18 @@ Makes a flow start when an inbound message matches a keyword.
 
 Make a flow start when an inbound message matches a keyword. Without a trigger or a default flow, an active flow never starts on its own.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `keyword` | string | yes | length 1–120 |
-| `matchType` | `exact` \| `starts_with` \| `contains` | yes | — |
-| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
-| `flowUuid` | uuid | yes | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `keyword` | string | yes | length 1–120 | — |
+| `matchType` | `exact` \| `starts_with` \| `contains` | yes | — | — |
+| `runWhenAssigned` | boolean | no | — | Com atendente, permite apenas clique real com título exato. Padrão: false. Preserva a atribuição. |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
+| `flowUuid` | uuid | yes | — | — |
 
 **Side effects.**
 - Goes live immediately for every inbound message of the company.
 
+- runWhenAssigned é false por padrão. Quando true, conversa atribuída inicia somente por clique real de botão com título exato, preservando o atendente. Texto digitado não autoriza essa execução.
 - supportedEntries is an optional entry-kind list; empty means all. The target flow must also allow the entry.
 - Match is case-insensitive. `exact` is the safe default; `contains` catches words inside longer messages and can steal traffic from other flows.
 - The same keyword with the same match type cannot exist twice.
@@ -1908,6 +1935,30 @@ Make a flow start when an inbound message matches a keyword. Without a trigger o
   "flowUuid": "<flow uuid>"
 }
 ```
+
+#### `update_keyword`
+
+Edita um gatilho da empresa ativa e limpa o cache de gatilhos.
+
+**Scope:** `flows:write`
+
+**When to use.** Para alterar palavra, fluxo, entradas ou runWhenAssigned de um gatilho existente.
+
+Edita o gatilho da empresa ativa. Campos omitidos são preservados. runWhenAssigned permite clique real com título exato em conversa atribuída, sem trocar o atendente.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `keywordUuid` | uuid | yes | — |
+| `keyword` | string | no | length 1–120 |
+| `matchType` | `exact` \| `starts_with` \| `contains` | no | — |
+| `runWhenAssigned` | boolean | no | — |
+| `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — |
+| `flowUuid` | uuid | no | — |
+
+**Side effects.**
+- A configuração vale nas próximas mensagens da empresa.
+
+- Use list_keywords para obter keywordUuid. Campos omitidos são preservados.
 
 #### `delete_keyword`
 
@@ -1931,19 +1982,21 @@ Chooses the flow for first contact, for unmatched messages or for storefront ord
 
 **Scope:** `flows:write`
 
-**When to use.** When the user wants a flow to greet every new contact (`welcome`), answer anything no trigger caught (`default_reply`) or confirm store orders (`store_order`).
+**When to use.** When the user wants a flow to greet every new contact (`welcome`), answer anything no trigger caught (`default_reply`), handle new store orders (`store_order`) or run post-sale steps after payment (`store_order_paid`).
 
-Choose the flow that runs for a kind of event: welcome (first contact), default_reply (no trigger matched) or store_order (storefront order). Pass flowUuid null to turn the slot off.
+Choose the flow that runs for a kind of event: welcome (first contact), default_reply (no trigger matched), store_order (storefront order) or store_order_paid (after payment confirmation and its status notice). Pass flowUuid null to turn the slot off.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
-| `kind` | `welcome` \| `default_reply` \| `store_order` | yes | — |
+| `kind` | `welcome` \| `default_reply` \| `store_order` \| `store_order_paid` | yes | — |
 | `flowUuid` | uuid \| null | yes | — |
 
 **Side effects.**
 - Replaces the flow that held the slot before.
 
-- `store_order` needs the store permission; the other kinds need keywords.
+- `store_order` and `store_order_paid` need the store permission; the other kinds need keywords. Store kinds never route inbound messages.
+- `store_order_paid` runs once per order, after the native payment status or optional text notice, with a short delay and the same 24h-window retry ladder as store_order. Configure it in Store → Order automation.
+- Both store kinds expose {{vars.order.ref}}, total, total_cents, link, firstItemName, items_text, payment_method, payment_method_label, payment_method_detail, payment_method_detail_label, customer_name, pix_key and payment_link under vars.order. Payment detail uses the paid gateway attempt (Pix, card or bank slip), falling back to the order method. {{contact.name}} is the contact name.
 
 #### `get_flow_errors`
 
@@ -2593,6 +2646,7 @@ Return the current storefront configuration, links, shipping options, categories
 
 _No arguments._
 
+- appearance includes the saved draft when hasDraft=true. checkoutIdentity contains logoUrl, legalName and document (validated CNPJ/CPF, display only, no uniqueness); empty fields inherit the company on checkout/payment screens. It never changes company registration or gateway credentials. Edit and publish in Store > Templates; this tool is read-only.
 - Category uuids appear only here — a product is filed by one of them.
 - Every price, shipping cost and total in the store is in cents.
 
@@ -2699,12 +2753,12 @@ Configure AI discount limits with explicit store:discounts scope and financial p
 
 #### `list_store_products`
 
-Lists products, filterable by category, active state, text and externalId.
+Lists products by category, active state, visibility, text or `externalId`.
 
 **Scope:** `store:read`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** To find a product uuid or to audit the catalogue.
+**When to use.** To find a product UUID or check the company catalog.
 
 List products in the company store with optional category, active and search filters
 
@@ -2714,12 +2768,23 @@ List products in the company store with optional category, active and search fil
 | `externalId` | string | no | length 0–120 |
 | `categoryUuid` | uuid | no | — |
 | `active` | boolean | no | — |
+| `listed` | boolean | no | — |
 | `page` | integer | no | min 1 |
 | `limit` | integer | no | range 1–50 |
 
-- `externalId` is the product id in the customer's own platform (ERP, e-commerce); pass it for an exact lookup when the user refers to a product by that id.
-- Inactive products are still returned; they simply do not appear on the storefront.
-- This is the Wazapi storefront catalogue. The Meta catalogue behind `send_product_message` is a different list — see `get_catalog_status`.
+- `externalId` is the product ID in the customer platform, such as an ERP or online store. Use it for an exact lookup by that link.
+- `active` and `listed` are independent. Without these filters, results include inactive and unlisted products. Use `active=true` and `listed=false` to find active products reserved for assisted sales.
+- `listed=false` excludes the product from the public storefront, search, highlights and Meta catalog. Assisted orders and payment links remain available while it is active.
+- Responses include `installmentsMax` and `minInstallmentCents`, corresponding to `installments_max` and `min_installment_cents`. `null` inherits the store default; a minimum of `0` removes the installment minimum. Installments are always interest-free.
+- This is the Wazapi store catalog. Use `get_catalog_status` to check synchronization and which products can be sent with `send_product_message`.
+
+```json
+{
+  "active": true,
+  "listed": false,
+  "limit": 20
+}
+```
 
 #### `get_store_product`
 
@@ -2813,81 +2878,120 @@ Move a store order to the next allowed status (novo → confirmado/cancelado, co
 
 #### `create_store_product`
 
-Creates a product, optionally with variants.
+Creates a product with optional variants and installments, listed or reserved for assisted sales.
 
 **Scope:** `store:write`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** To add an item to the storefront.
+**When to use.** To add a company product, including one outside the public storefront.
 
 Create a new product in the company store, optionally with variants
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `name` | string | yes | length 1–140 |
-| `description` | string | no | length 0–2000 |
-| `categoryUuid` | uuid | no | — |
-| `priceCents` | integer | yes | range 0–100000000 |
-| `promoPriceCents` | integer | no | range 0–100000000 |
-| `costCents` | integer | no | range 0–100000000 |
-| `taxPercent` | number | no | range 0–100 |
-| `markupPercent` | number | no | range 0–10000 |
-| `externalId` | string \| null | no | — |
-| `categoryExternalId` | string \| null | no | — |
-| `highlighted` | boolean | no | — |
-| `trackStock` | boolean | no | — |
-| `stock` | integer | no | min 0 |
-| `active` | boolean | no | — |
-| `position` | integer | no | min 0 |
-| `variants` | object[] | no | 0–50 items |
-| `variants[].label` | string | yes | length 1–80 |
-| `variants[].priceCents` | integer | no | range 0–100000000 |
-| `variants[].stock` | integer | no | min 0 |
-| `variants[].active` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `name` | string | yes | length 1–140 | — |
+| `description` | string | no | length 0–2000 | — |
+| `categoryUuid` | uuid | no | — | — |
+| `priceCents` | integer | yes | range 0–100000000 | — |
+| `promoPriceCents` | integer | no | range 0–100000000 | — |
+| `installmentsMax` | integer \| null | no | — | Interest-free maximum; null inherits the store default. |
+| `minInstallmentCents` | integer \| null | no | — | Minimum installment in cents; null inherits R$ 5, zero disables the minimum. |
+| `costCents` | integer | no | range 0–100000000 | — |
+| `taxPercent` | number | no | range 0–100 | — |
+| `markupPercent` | number | no | range 0–10000 | — |
+| `externalId` | string \| null | no | — | — |
+| `categoryExternalId` | string \| null | no | — | — |
+| `listed` | boolean | no | — | False hides from the public storefront and Meta catalog; orders and payment links remain available. Default true on create; omission preserves on update. |
+| `highlighted` | boolean | no | — | — |
+| `trackStock` | boolean | no | — | — |
+| `stock` | integer | no | min 0 | — |
+| `active` | boolean | no | — | — |
+| `position` | integer | no | min 0 | — |
+| `variants` | object[] | no | 0–50 items | — |
+| `variants[].label` | string | yes | length 1–80 | — |
+| `variants[].priceCents` | integer | no | range 0–100000000 | — |
+| `variants[].stock` | integer | no | min 0 | — |
+| `variants[].active` | boolean | no | — | — |
 
-- All money fields are in cents.
-- `externalId` links the product to the customer's own platform; `categoryExternalId` picks the category by that same kind of id (unknown id is an error, unlike an unknown `categoryUuid`).
+**Side effects.**
+- Creates the product and its variants. `listed` defaults to `true`.
+
+- All money values are in cents. MCP fields `installmentsMax` and `minInstallmentCents` map to product fields `installments_max` and `min_installment_cents`.
+- `installmentsMax` accepts 1 to 12 interest-free installments. Omission or `null` inherits the store limit. Omitting `minInstallmentCents` or setting it to `null` inherits the 500-cent minimum; `0` disables only that minimum.
+- Mixed orders use the lowest limit allowed by their lines, based on net item value. Shipping does not increase the installment limit. New orders store the policy in their item snapshot.
+- `listed=false` keeps assisted orders and payment links available for an active product, while excluding it from the storefront, search, highlights and Meta catalog. It does not deactivate the product. Do not use `send_product_message` for an unlisted product.
+- `externalId` links the product to the customer platform; `categoryExternalId` selects the category by its external ID. An unknown external category ID is an error, unlike an unknown `categoryUuid`.
+
+```json
+{
+  "name": "Example product",
+  "priceCents": 12000,
+  "active": true,
+  "listed": false,
+  "installmentsMax": 6,
+  "minInstallmentCents": 500
+}
+```
 
 #### `update_store_product`
 
-Updates a product; omitted fields keep their value.
+Updates a product, visibility and installments, preserving omitted optional fields.
 
 **Scope:** `store:write`
 **Plan:** requires a plan with the storefront.
 
-**When to use.** To change price, stock or description.
+**When to use.** To change price, stock, description, public visibility or interest-free installments.
 
 Update an existing store product. Omitted fields keep their current value. When `variants` is sent it replaces the list: variants with a known uuid are updated, new ones are created and existing variants missing from it are removed (including inactive ones — read them with get_store_product first). Omit `variants` to leave them untouched.
 
-| Parameter | Type | Required | Constraints |
-| --- | --- | --- | --- |
-| `productUuid` | uuid | yes | — |
-| `name` | string | yes | length 1–140 |
-| `description` | string | no | length 0–2000 |
-| `categoryUuid` | uuid | no | — |
-| `priceCents` | integer | yes | range 0–100000000 |
-| `promoPriceCents` | integer | no | range 0–100000000 |
-| `costCents` | integer | no | range 0–100000000 |
-| `taxPercent` | number | no | range 0–100 |
-| `markupPercent` | number | no | range 0–10000 |
-| `externalId` | string \| null | no | — |
-| `categoryExternalId` | string \| null | no | — |
-| `highlighted` | boolean | no | — |
-| `trackStock` | boolean | no | — |
-| `stock` | integer | no | min 0 |
-| `active` | boolean | no | — |
-| `position` | integer | no | min 0 |
-| `variants` | object[] | no | 0–50 items |
-| `variants[].uuid` | uuid | no | — |
-| `variants[].label` | string | yes | length 1–80 |
-| `variants[].priceCents` | integer | no | range 0–100000000 |
-| `variants[].stock` | integer | no | min 0 |
-| `variants[].active` | boolean | no | — |
+| Parameter | Type | Required | Constraints | Description |
+| --- | --- | --- | --- | --- |
+| `productUuid` | uuid | yes | — | — |
+| `name` | string | yes | length 1–140 | — |
+| `description` | string | no | length 0–2000 | — |
+| `categoryUuid` | uuid | no | — | — |
+| `priceCents` | integer | yes | range 0–100000000 | — |
+| `promoPriceCents` | integer | no | range 0–100000000 | — |
+| `installmentsMax` | integer \| null | no | — | Interest-free maximum; null inherits the store default. |
+| `minInstallmentCents` | integer \| null | no | — | Minimum installment in cents; null inherits R$ 5, zero disables the minimum. |
+| `costCents` | integer | no | range 0–100000000 | — |
+| `taxPercent` | number | no | range 0–100 | — |
+| `markupPercent` | number | no | range 0–10000 | — |
+| `externalId` | string \| null | no | — | — |
+| `categoryExternalId` | string \| null | no | — | — |
+| `listed` | boolean | no | — | False hides from the public storefront and Meta catalog; orders and payment links remain available. Default true on create; omission preserves on update. |
+| `highlighted` | boolean | no | — | — |
+| `trackStock` | boolean | no | — | — |
+| `stock` | integer | no | min 0 | — |
+| `active` | boolean | no | — | — |
+| `position` | integer | no | min 0 | — |
+| `variants` | object[] | no | 0–50 items | — |
+| `variants[].uuid` | uuid | no | — | — |
+| `variants[].label` | string | yes | length 1–80 | — |
+| `variants[].priceCents` | integer | no | range 0–100000000 | — |
+| `variants[].stock` | integer | no | min 0 | — |
+| `variants[].active` | boolean | no | — | — |
 
 **Side effects.**
-- When `variants` is sent, variants missing from it are deleted.
+- Sending `variants` deletes existing variants missing from the list, including inactive ones.
+- `listed=false` removes the product from the storefront and Meta catalog; synchronization removes previous mirrors. Active products remain available for assisted orders and payment links.
 
-- Omit `variants` to leave them untouched. To change them, call `get_store_product` first and send back every variant you want to keep, each with its `uuid`.
+- The schema requires `productUuid`, `name` and `priceCents` even for a small change. Read `get_store_product` first and preserve current values you do not want to change.
+- Omitting `variants` preserves them. To change them, return every variant to keep, each with its `uuid`.
+- `installmentsMax` and `minInstallmentCents` map to `installments_max` and `min_installment_cents`. Omission preserves saved values; `null` restores store inheritance. `installmentsMax` accepts 1 to 12 interest-free installments. `minInstallmentCents` is in cents: `null` inherits 500 and `0` removes only the minimum.
+- Mixed orders use the lowest line limit on net item value, without financing shipping. Product changes do not rewrite installment snapshots in existing orders.
+- Omitting `listed` preserves visibility. `listed` and `active` are independent. Unlisted products are also excluded from search and highlights. Inactive products are unavailable for new orders.
+
+```json
+{
+  "productUuid": "00000000-0000-4000-8000-000000000001",
+  "name": "Example product",
+  "priceCents": 12000,
+  "listed": false,
+  "installmentsMax": null,
+  "minInstallmentCents": 0
+}
+```
 
 #### `create_store_category`
 
@@ -3148,27 +3252,29 @@ Delete a knowledge base source; AI agents stop answering from it. Refused when i
 
 #### `list_company_queries`
 
-list company queries for the active company.
+Lists configured GET/POST queries in the active company, including post-payment queries.
 
 **Scope:** `ai_agents:read`
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** Before configuring or testing a company query.
 
-List company-owned HTTPS GET queries; authentication values are never returned. Requires company settings permission.
+List company-owned HTTPS GET/POST queries; authentication values are never returned. Requires company settings permission.
 
 _No arguments._
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+- Requires `settings.general`. Returns configuration and authentication state, never credential values. Listing runs no queries and triggers no automatic actions.
+- Check `method` and `parameters[].source`: GET sends arguments in the URL; POST sends JSON and can change the external system. Omitted `source` or `argument` uses call arguments; `contact_uuid` and `last_paid_store_order_uuid` use conversation context resolved by the server.
+- `last_paid_store_order_uuid` identifies the most recently paid order for the same contact in the same company, with status `pago` or `entregue` and a `paidAt` value. Checkout orders also require `paymentStatus` to be `paid`. Queries can use this context after payment.
 
 #### `create_company_query`
 
-create company query for the active company.
+Creates a company GET/POST query, including post-payment operations.
 
 **Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** When the human requests an integration with a defined endpoint and parameters.
 
 Create a configurable company query, inactive by default. Use only a fixed HTTPS endpoint and an encrypted header or same-company/same-host knowledge credential. Requires explicit ai_agents:write.
 
@@ -3177,6 +3283,7 @@ Create a configurable company query, inactive by default. Use only a fixed HTTPS
 | `name` | string | yes | length 1–40 |
 | `description` | string | yes | length 1–600 |
 | `url` | string | yes | length 0–2048 |
+| `method` | `GET` \| `POST` | no | — |
 | `parameters` | object[] | no | — |
 | `authHeaderName` | string \| null | no | — |
 | `authHeaderValue` | string | no | length 1–8192 |
@@ -3189,17 +3296,42 @@ Create a configurable company query, inactive by default. Use only a fixed HTTPS
 | `parameters[].required` | boolean | yes | — |
 | `parameters[].enum` | string[] | no | — |
 | `parameters[].maxLength` | integer | no | range 1–120 |
+| `parameters[].source` | `argument` \| `contact_uuid` \| `last_paid_store_order_uuid` | no | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+**Side effects.**
+- Saves configuration and writes an audit entry. Queries start inactive by default; creation does not execute the HTTP request.
+
+- Requires `settings.general` and explicit sensitive scope `ai_agents:write`. Use a fixed HTTPS endpoint and an encrypted authentication header or credentials from a source in the same company and on the same host. Credential values are never returned.
+- `method` defaults to GET; POST sends a JSON object and can change external records when executed. Omitted `parameters[].source` or `argument` accepts conversation arguments; `contact_uuid` and `last_paid_store_order_uuid` are filled by the server and cannot be sent in `args`.
+- For post-payment operations, `last_paid_store_order_uuid` uses the latest paid order for the contact in the same company. Execution requires contact context and, when the parameter is required, an eligible order. Missing context or a required order fails before HTTP. Agent calls require the query to be active and allowed for that agent.
+
+```json
+{
+  "name": "check_post_payment",
+  "description": "Example query for the latest paid order of the contact.",
+  "url": "https://example.invalid/post-payment",
+  "method": "POST",
+  "credentialFromKnowledgeSourceUuid": "00000000-0000-4000-8000-000000000001",
+  "parameters": [
+    {
+      "name": "order_uuid",
+      "description": "Latest paid order of the contact, resolved by the server.",
+      "required": true,
+      "source": "last_paid_store_order_uuid"
+    }
+  ],
+  "isActive": false
+}
+```
 
 #### `update_company_query`
 
-update company query for the active company.
+Updates a company query configuration and parameter sources.
 
 **Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** To adjust an existing query, including its use after payment.
 
 Patch a company query. Omitted fields and credential values are preserved; arrays replace. Active queries affect the next permitted agent call. Requires explicit ai_agents:write.
 
@@ -3208,6 +3340,7 @@ Patch a company query. Omitted fields and credential values are preserved; array
 | `name` | string | no | length 1–40 |
 | `description` | string | no | length 1–600 |
 | `url` | string | no | length 0–2048 |
+| `method` | `GET` \| `POST` | no | — |
 | `parameters` | object[] | no | — |
 | `authHeaderName` | string \| null | no | — |
 | `authHeaderValue` | string | no | length 1–8192 |
@@ -3221,8 +3354,36 @@ Patch a company query. Omitted fields and credential values are preserved; array
 | `parameters[].required` | boolean | yes | — |
 | `parameters[].enum` | string[] | no | — |
 | `parameters[].maxLength` | integer | no | range 1–120 |
+| `parameters[].source` | `argument` \| `contact_uuid` \| `last_paid_store_order_uuid` | no | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+**Side effects.**
+- Saves configuration and writes an audit entry. Active query changes apply on the next permitted agent call, including ongoing conversations.
+- Supplied arrays replace existing ones. When sending `parameters`, include every parameter to keep.
+
+- Requires `settings.general` and explicit `ai_agents:write`. Omitted fields and credential values are preserved; credential values are never returned. Updating does not execute the query.
+- GET sends arguments in the URL; POST sends JSON and can change external records when called. `parameters[].source` accepts `argument`, `contact_uuid` or `last_paid_store_order_uuid`. Omitting `source` keeps the parameter as an argument, not protected context.
+- `contact_uuid` and `last_paid_store_order_uuid` are resolved by the server for the contact and company of the conversation. Never substitute a model-suggested order UUID for the latest paid order.
+
+```json
+{
+  "queryUuid": "00000000-0000-4000-8000-000000000001",
+  "method": "POST",
+  "parameters": [
+    {
+      "name": "contact_uuid",
+      "description": "Conversation contact, resolved by the server.",
+      "required": true,
+      "source": "contact_uuid"
+    },
+    {
+      "name": "order_uuid",
+      "description": "Latest paid order for this contact in the company.",
+      "required": true,
+      "source": "last_paid_store_order_uuid"
+    }
+  ]
+}
+```
 
 #### `delete_company_query`
 
@@ -3239,25 +3400,40 @@ Delete a company query and remove its agent references; recorded turn metadata r
 | --- | --- | --- | --- |
 | `queryUuid` | uuid | yes | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+- Requires settings.general. Credentials are never returned. Test executes the configured GET or POST without AI; POST can change the external system.
 
 #### `test_company_query`
 
-test company query for the active company.
+Executes a GET/POST query without AI, with optional contact context.
 
 **Scope:** `ai_agents:write` — **sensitive, never granted by broad access**
 **Plan:** requires the Business plan (AI agent).
 
-**When to use.** When the human requests live-query configuration or verification.
+**When to use.** When the human requests a real test of the configured integration.
 
-Perform one HTTPS GET with the configured header and supplied arguments, without AI. Returns status, time and at most 1500 response characters; never credentials. Requires explicit ai_agents:write and company settings permission.
+Perform one configured HTTPS GET or POST with the configured header and supplied arguments, without AI. Returns status, time and at most 1500 response characters; never credentials. Requires explicit ai_agents:write and company settings permission.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `queryUuid` | uuid | yes | — |
 | `args` | object | yes | — |
+| `contactUuid` | uuid | no | — |
 
-- Requires settings.general. Credentials are never returned. Test performs a GET without AI.
+**Side effects.**
+- Executes the configured HTTP request even when the query is inactive. POST can create or change external records; this is a real request.
+- Audits status, duration, size and error code, without arguments or response text. Uses no AI.
+
+- Requires `settings.general` and explicit `ai_agents:write`. Returns status, duration and up to 1500 response characters, never credential values.
+- Send `contactUuid` from the active company for parameters with `source` set to `contact_uuid` or `last_paid_store_order_uuid`. The server resolves the contact and their latest paid order in that company. `args` accepts only parameters with `source` set to `argument` or omitted. Context parameters in `args` cause rejection.
+- Missing contact context or a paid order required by the configuration fails before HTTP. Check the method before testing a post-payment operation: a real POST can repeat external effects.
+
+```json
+{
+  "queryUuid": "00000000-0000-4000-8000-000000000001",
+  "contactUuid": "00000000-0000-4000-8000-000000000002",
+  "args": {}
+}
+```
 
 #### `list_ai_agent_guard_rules`
 
@@ -3363,6 +3539,39 @@ _No arguments._
 - Default desligado. sombra stores private shadow records; nota creates one internal note; neither sends to a contact. plantao replies to the lead as the seller's assistant, only in plantao.groups. Requires ai_agents:read and settings.general. Only WhatsApp.
 - dailyCounters is read-only. Plantao quotas count only confirmed sends; in-flight and uncertain sends reserve capacity until resolved. Invalid reason counts include recovered format retries; invalidas counts decisions that remain invalid. invalidas and invalidasPorMotivo apply only to the trigger B context decision; they remain zero for A/C.
 
+#### `dismiss_ai_suggestions`
+
+Dismiss open AI suggestions in bulk
+
+**Scope:** `conversations:write`
+
+**When to use.** Preview counts by seller, then dismiss open AI tasks after management requests cleanup.
+
+Preview or dismiss open AI seller tasks in the active company. dryRun defaults to true; false completes reminders and records the manager and reason. Preserves note history, personal reminders and sending/sent/dismissed suggestions. Requires inbox and dashboard.team or dashboard.company.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `dryRun` | boolean | no | — |
+| `sellerUuid` | uuid | no | — |
+| `createdBefore` | string | no | — |
+
+- Requires conversations:write, inbox and dashboard.team or dashboard.company in the active company. dryRun defaults to true and writes nothing; false completes open AI reminders with actor and reason while preserving note history. Other states and personal reminders remain untouched.
+- sellerUuid optionally limits the seller; createdBefore is an exclusive ISO timestamp with timezone. Returns dismissed and bySeller [{sellerUuid, name, count}]; in dryRun, dismissed is the number that would be dismissed. Repeating a completed cleanup returns zero.
+
+#### `get_ai_suggestion_counts`
+
+Count open AI suggestions by seller
+
+**Scope:** `conversations:read`
+
+**When to use.** Review seller suggestion tasks, including scheduled reminders, without reading conversation content.
+
+Count open seller suggestion tasks in the active company, including future reminders. No conversation content. Requires inbox and dashboard.team or dashboard.company.
+
+_No arguments._
+
+- Requires conversations:read, inbox and dashboard.team or dashboard.company. Counts are restricted to the active company.
+
 #### `update_ai_duty_settings`
 
 Update AI duty settings
@@ -3376,11 +3585,17 @@ Replace AI duty configuration for this company. Requires an active company agent
 
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
+| `summaryNotesEnabled` | boolean | no | — | Keep only the latest AI summary note. Default enabled; omitted preserves saved. |
+| `suggestionsEnabled` | boolean | no | — | Create seller suggestion tasks (internal note and personal reminder). Omitted preserves saved; default enabled. |
 | `mode` | `desligado` \| `sombra` \| `nota` \| `plantao` | yes | — | — |
 | `agentUuid` | uuid \| null | yes | — | — |
 | `channels` | `whatsapp`[] | yes | 0–1 items | — |
 | `dailyLimit` | integer | yes | range 1–1000 | — |
 | `plantao` | object | no | — | Plantão configuration. Omit to keep the saved one. |
+| `plantao.retomadaContextual` | boolean | no | — | — |
+| `plantao.leituraContexto` | boolean | no | — | — |
+| `plantao.leituraModelo` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` | no | — | — |
+| `plantao.umaVozPorConversa` | boolean | no | — | — |
 | `plantao.janelaContato` | object | no | — | Shared contact window for A/C/B, company timezone. Default 08:00 to 22:00; retomadaJanela is a compatible alias. |
 | `plantao.respostaRapidaMinutos` | integer | no | range 1–120 | Only A may reply outside the window to a lead message received at most this many minutes ago. Default 20. |
 | `plantao.limiteDiario` | integer | no | range 1–1000 | Separate A/C daily cap. Omit to keep; legacy settings fall back to dailyLimit. New default 300. |
@@ -3434,6 +3649,8 @@ Read the complete AI agent configuration, linked knowledge sources and affected 
 | `agentUuid` | uuid | yes | — |
 
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
+- allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
+- storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `get_ai_agent_configuration_context`
@@ -3465,7 +3682,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 | — |
-| `instructions` | string | yes | length 1–20000 | — |
+| `instructions` | string | yes | length 1–24000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3488,6 +3705,8 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `allowedStoreCategoryUuids` | uuid[] | no | 0–100 items | Store categories this agent may sell. Empty means no restriction. Omitted on update preserves the list. |
+| `storeSalesBlockScheduleUuid` | uuid \| null | no | — | Business schedule during which this agent refuses to close a sale. Null means no restriction. Omitted on update preserves it. |
 | `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
@@ -3501,12 +3720,15 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- search_store_catalog returns installments per product and variant: max is the effective card installment count for one unit at the returned price; minInstallmentCents is the minimum installment in cents when max > 1 (0 means no minimum). Only state the installments returned for the selected product or variant. With max: 1, offer only payment in full (à vista), without installments. Never assume 12 installments or invent missing terms. Quantity and discounts can change the checkout limit.
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
-- Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
+- allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
+- storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
+- Instructions accept up to 24,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `test_ai_agent`
@@ -3525,7 +3747,7 @@ Run one paid, simulated AI turn for an active or inactive agent. No conversation
 | `agentUuid` | uuid | yes | — | — |
 | `messages` | object[] | yes | 1–40 items | — |
 | `contactName` | string | no | length 1–120 | — |
-| `instructionsOverride` | string | no | length 1–12000 | — |
+| `instructionsOverride` | string | no | length 1–24000 | — |
 | `knowledgeSourceUuidsOverride` | uuid[] | no | 0–200 items | Omitted uses agent links. An explicit empty list disables retrieval for this test. |
 | `nowOverride` | string | no | — | ISO 8601 with Z or an explicit UTC offset. Changes only the model context clock. |
 | `messages[].role` | `user` \| `assistant` | yes | — | — |
@@ -3579,7 +3801,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | --- | --- | --- | --- | --- |
 | `agentUuid` | uuid | yes | — | — |
 | `name` | string | no | length 1–120 | — |
-| `instructions` | string | no | length 1–20000 | — |
+| `instructions` | string | no | length 1–24000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3602,6 +3824,8 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | `allowedContactCore` | string[] | no | 0–10 items | — |
 | `allowedConversationFields` | string[] | no | 0–100 items | — |
 | `allowedStageUuids` | uuid[] | no | 0–50 items | — |
+| `allowedStoreCategoryUuids` | uuid[] | no | 0–100 items | Store categories this agent may sell. Empty means no restriction. Omitted on update preserves the list. |
+| `storeSalesBlockScheduleUuid` | uuid \| null | no | — | Business schedule during which this agent refuses to close a sale. Null means no restriction. Omitted on update preserves it. |
 | `supportedEntries` | `direct` \| `ad` \| `story_reply` \| `mention` \| `comment`[] | no | — | — |
 | `debounceSeconds` | integer | no | range 0–10 | — |
 | `handoffGroupUuid` | uuid \| null | no | — | — |
@@ -3615,12 +3839,15 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 **Side effects.**
 - Configuration is saved and audited. Active agents read updates live. Activation, default attendance and deletion remain in the dashboard.
 
+- search_store_catalog returns installments per product and variant: max is the effective card installment count for one unit at the returned price; minInstallmentCents is the minimum installment in cents when max > 1 (0 means no minimum). Only state the installments returned for the selected product or variant. With max: 1, offer only payment in full (à vista), without installments. Never assume 12 installments or invent missing terms. Quantity and discounts can change the checkout limit.
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
-- Instructions accept up to 20,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
+- allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
+- storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
+- Instructions accept up to 24,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal; create_store_order requires customer confirmation; checkout_store_order requires that confirmed order and can create a payment and send its card link, Pix code or bank slip (boleto). Enable them only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `get_ai_summary_settings`

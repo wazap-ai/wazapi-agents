@@ -65,7 +65,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
 | `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
-| `conversations:read` | `get_ai_suggestion_counts`, `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
+| `conversations:read` | `get_ai_suggestion_counts`, `list_conversations`, `get_conversation`, `get_company_dashboard`, `get_team_dashboard`, `list_markers`, `list_reminders` |
 | `conversations:write` | `dismiss_ai_suggestions`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
 | `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
@@ -663,6 +663,41 @@ Assign a conversation to a specific user (agent) or group. Use the UUIDs returne
   "assignedToGroupUuid": "…"
 }
 ```
+
+#### `get_company_dashboard`
+
+Returns the company dashboard (volume, response time, automation) for a period.
+
+**Scope:** `conversations:read`
+
+**When to use.** For "how is the operation doing" questions: conversations today/this week, first response time, automation rate, busiest hours.
+
+Return the company dashboard for a period (today, 7d, 30d or 90d): message volume, new contacts, open/pending/resolved conversations, first response time, automation rate, hourly and daily volume, top flows and stalled conversations. Same numbers as the in-app company dashboard.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `period` | `today` \| `7d` \| `30d` \| `90d` | no | — |
+
+- Period is `today`, `7d`, `30d` or `90d`, in the company timezone; defaults to `today`. The response echoes it as `today`, 7, 30 or 90.
+- Blocks the access profile or the token scopes do not cover come back `null` (lists too): `null` means hidden, not zero.
+- Store, CRM, costs, contacts and agent names also need `store:read`, `crm:read`, `whatsapp:read`/`contacts:read` and `users:read`.
+
+#### `get_team_dashboard`
+
+Returns the team dashboard (queue, SLA, closure rate, per agent) for a period.
+
+**Scope:** `conversations:read`
+
+**When to use.** For team performance questions: SLA, first response, closure rate, which agent resolved most, queue right now.
+
+Return the team dashboard for a period (today, 7d, 30d or 90d), optionally for one group: queue (open, pending, stalled, unassigned, awaiting), agents available, assigned and resolved conversations, closure rate, first response time and SLA rate, per group and per agent. Same numbers as the in-app team dashboard.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `period` | `today` \| `7d` \| `30d` \| `90d` | no | — |
+| `groupUuid` | uuid | no | — |
+
+- Pass `groupUuid` (from `list_groups`) to scope to one group; an unknown group is an error, not all groups.
 
 #### `create_conversation_note`
 

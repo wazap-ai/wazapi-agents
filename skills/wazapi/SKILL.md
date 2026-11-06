@@ -68,7 +68,7 @@ Every tool requires exactly one scope, checked on reads as well as writes. A mis
 | `contacts:block` | `block_contact`, `unblock_contact` |
 | `contacts:read` | `list_contacts`, `get_contact`, `list_custom_field_definitions`, `get_ownerless_fallback`, `get_inbox_response_settings`, `get_conversation_panel` |
 | `contacts:write` | `create_contact`, `update_contact`, `recalculate_team_reply`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `update_inbox_response_settings`, `update_conversation_panel`, `create_custom_field`, `update_custom_field` |
-| `conversations:read` | `get_ai_suggestion_counts`, `list_conversations`, `get_conversation`, `list_markers`, `list_reminders` |
+| `conversations:read` | `get_ai_suggestion_counts`, `list_conversations`, `get_conversation`, `get_company_dashboard`, `get_team_dashboard`, `list_markers`, `list_reminders` |
 | `conversations:write` | `dismiss_ai_suggestions`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `set_conversation_markers`, `create_reminder`, `complete_reminder` |
 | `crm:read` | `list_crm_groups`, `get_crm_board`, `get_crm_metrics`, `list_crm_opportunities`, `get_crm_opportunity` |
 | `crm:write` | `create_crm_opportunity`, `move_crm_opportunity`, `update_crm_opportunity`, `create_crm_stage`, `update_crm_stage`, `reorder_crm_stages` |
@@ -185,7 +185,7 @@ Each domain has its own file next to this one, with the full entry per tool — 
 
 **Conversations and messaging** — `reference/conversations.md`
 
-`list_conversations`, `get_conversation`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `recalculate_team_reply`, `get_ownerless_fallback`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `get_inbox_response_settings`, `update_inbox_response_settings`, `get_entry_settings`, `update_entry_settings`, `list_messages`, `react_to_message`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
+`list_conversations`, `get_conversation`, `update_conversation_fields`, `update_conversation_status`, `assign_conversation`, `get_company_dashboard`, `get_team_dashboard`, `create_conversation_note`, `set_conversation_tags`, `list_markers`, `set_conversation_markers`, `list_reminders`, `create_reminder`, `complete_reminder`, `recalculate_team_reply`, `get_ownerless_fallback`, `update_ownerless_fallback`, `apply_ownerless_fallback`, `get_inbox_response_settings`, `update_inbox_response_settings`, `get_entry_settings`, `update_entry_settings`, `list_messages`, `react_to_message`, `send_text_message`, `send_product_message`, `send_template_message`, `send_media_message`
 
 **Contacts, tags and custom fields** — `reference/contacts.md`
 

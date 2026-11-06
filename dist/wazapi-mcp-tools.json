@@ -683,6 +683,24 @@
       "sideEffects": []
     },
     {
+      "name": "get_company_dashboard",
+      "category": "conversations",
+      "summary": "Returns the company dashboard (volume, response time, automation) for a period.",
+      "scope": "conversations:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
+      "name": "get_team_dashboard",
+      "category": "conversations",
+      "summary": "Returns the team dashboard (queue, SLA, closure rate, per agent) for a period.",
+      "scope": "conversations:read",
+      "requiresPlan": null,
+      "mutates": false,
+      "sideEffects": []
+    },
+    {
       "name": "get_store_metrics",
       "category": "store",
       "summary": "Returns sales metrics for a period.",

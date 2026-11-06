@@ -9,6 +9,8 @@ Part of the Wazapi MCP skill. Read `SKILL.md` first: it carries how a session st
 - `update_conversation_fields` — Updates custom field values in a visible conversation.
 - `update_conversation_status` — Moves a conversation between open, pending and resolved.
 - `assign_conversation` — Assigns a conversation to an agent, a group, or neither.
+- `get_company_dashboard` — Returns the company dashboard (volume, response time, automation) for a period.
+- `get_team_dashboard` — Returns the team dashboard (queue, SLA, closure rate, per agent) for a period.
 - `create_conversation_note` — Adds an internal note to a conversation, visible only to the team.
 - `set_conversation_tags` — Adds or removes tags on the conversation itself.
 - `list_markers` — Lists the authenticated user's personal markers.
@@ -152,6 +154,41 @@ Assign a conversation to a specific user (agent) or group. Use the UUIDs returne
   "assignedToGroupUuid": "…"
 }
 ```
+
+#### `get_company_dashboard`
+
+Returns the company dashboard (volume, response time, automation) for a period.
+
+**Scope:** `conversations:read`
+
+**When to use.** For "how is the operation doing" questions: conversations today/this week, first response time, automation rate, busiest hours.
+
+Return the company dashboard for a period (today, 7d, 30d or 90d): message volume, new contacts, open/pending/resolved conversations, first response time, automation rate, hourly and daily volume, top flows and stalled conversations. Same numbers as the in-app company dashboard.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `period` | `today` \| `7d` \| `30d` \| `90d` | no | — |
+
+- Period is `today`, `7d`, `30d` or `90d`, in the company timezone; defaults to `today`. The response echoes it as `today`, 7, 30 or 90.
+- Blocks the access profile or the token scopes do not cover come back `null` (lists too): `null` means hidden, not zero.
+- Store, CRM, costs, contacts and agent names also need `store:read`, `crm:read`, `whatsapp:read`/`contacts:read` and `users:read`.
+
+#### `get_team_dashboard`
+
+Returns the team dashboard (queue, SLA, closure rate, per agent) for a period.
+
+**Scope:** `conversations:read`
+
+**When to use.** For team performance questions: SLA, first response, closure rate, which agent resolved most, queue right now.
+
+Return the team dashboard for a period (today, 7d, 30d or 90d), optionally for one group: queue (open, pending, stalled, unassigned, awaiting), agents available, assigned and resolved conversations, closure rate, first response time and SLA rate, per group and per agent. Same numbers as the in-app team dashboard.
+
+| Parameter | Type | Required | Constraints |
+| --- | --- | --- | --- |
+| `period` | `today` \| `7d` \| `30d` \| `90d` | no | — |
+| `groupUuid` | uuid | no | — |
+
+- Pass `groupUuid` (from `list_groups`) to scope to one group; an unknown group is an error, not all groups.
 
 #### `create_conversation_note`
 

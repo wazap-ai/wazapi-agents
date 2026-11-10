@@ -3517,7 +3517,7 @@ Create an ensaio rule or patch an existing reply guard rule. Requires explicit a
 | `finalAction.text` | string | no | length 1–2000 |
 
 **Side effects.**
-- Saves and audits configuration. New rules must be ensaio; only a later patch may activate. Active rules permit one paid text-only rewrite, then safe_text or the agent handoff group.
+- Saves and audits configuration. New rules must be ensaio; only a later patch may activate. Active rules permit one paid text-only rewrite. An explicit keep marker preserves the original as kept. Failed correction uses safe_text or the agent handoff group; a second failure in the current flow session or a previously sent safe text holds delivery as held, with an internal note and silent handoff.
 
 - Requires explicit sensitive ai_agents:write and settings.general. ruleUuid selects a patch, omissions preserve values, condition=null clears it, enabled=false disables. No rule is registered by installing this feature. Maximum 50 rules per agent. Active handoff requires an active company-scoped handoff group.
 
@@ -3530,18 +3530,19 @@ Read reply guard triggers and outcomes.
 
 **When to use.** To measure ensaio precision and extra rewrite cost.
 
-Read triggering snippets, mode, rewrite and outcome for this company agent. Filter by ISO period (maximum 90 days) and ruleUuid; paginated, without contact history.
+Read triggering snippets, mode, rewrite and outcome for this company agent, including held and kept. Filter by ISO period (maximum 90 days), ruleUuid and outcome; paginated, without contact history.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `agentUuid` | uuid | yes | — |
 | `ruleUuid` | uuid | no | — |
+| `outcome` | `observed` \| `rewritten` \| `safe_text` \| `handoff` \| `held` \| `kept` | no | — |
 | `since` | string | no | — |
 | `until` | string | no | — |
 | `limit` | integer | no | range 1–100 |
 | `page` | integer | no | range 1–10000 |
 
-- Requires settings.general. Period is ISO with maximum 90 days; ruleUuid and pagination are optional. No contact history or full response is returned. guard_rewrite usage appears separately in get_ai_agent_usage.
+- Requires settings.general. Period is ISO with maximum 90 days; ruleUuid, outcome and pagination are optional. Outcomes include observed, rewritten, kept, safe_text, handoff and held. kept sends the original approved reply; held sends nothing and leaves an internal note for the team. No contact history or full response is returned. guard_rewrite usage appears separately in get_ai_agent_usage.
 
 #### `list_ai_agents`
 
@@ -3628,10 +3629,11 @@ Replace AI duty configuration for this company. Requires an active company agent
 | `dailyLimit` | integer | yes | range 1–1000 | — |
 | `plantao` | object | no | — | Plantão configuration. Omit to keep the saved one. |
 | `plantao.retomadaContextual` | boolean | no | — | — |
+| `plantao.retomadaHorario` | `agenda_do_grupo` \| `janela_contato` | no | — | Contextual B schedule: agenda_do_grupo (default) uses the group schedule or company default; janela_contato uses janelaContato every day in company timezone, without exceptions or holidays. Omit to keep. Legacy B and A/C are unchanged. |
 | `plantao.leituraContexto` | boolean | no | — | — |
 | `plantao.leituraModelo` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` | no | — | — |
 | `plantao.umaVozPorConversa` | boolean | no | — | — |
-| `plantao.janelaContato` | object | no | — | Shared contact window for A/C/B, company timezone. Default 08:00 to 22:00; retomadaJanela is a compatible alias. |
+| `plantao.janelaContato` | object | no | — | A/C contact window, company timezone. Contextual B uses it every day when retomadaHorario is janela_contato. Default 08:00 to 22:00; legacy B retains the retomadaJanela alias. |
 | `plantao.respostaRapidaMinutos` | integer | no | range 1–120 | Only A may reply outside the window to a lead message received at most this many minutes ago. Default 20. |
 | `plantao.limiteDiario` | integer | no | range 1–1000 | Separate A/C daily cap. Omit to keep; legacy settings fall back to dailyLimit. New default 300. |
 | `plantao.groups` | object[] | yes | 0–50 items | Groups where plantão applies, each with the supervisors to mention. |
@@ -3643,8 +3645,10 @@ Replace AI duty configuration for this company. Requires an active company agent
 | `plantao.carenciaDonoAtivo` | object | no | — | Trigger A grace after effective owner activity in this conversation: window default 60 minutes, wait default 3 minutes from human wait start or assignment. An owner reply cancels that wait. Omitted keys keep saved values. |
 | `plantao.notaForaDoPlantao` | boolean | no | — | Use phase 1 internal notes when plantao is ineligible. Default false; omit to keep. |
 | `plantao.gatilhoRetomada` | boolean | no | — | Trigger B on/off: one follow-up when the lead went silent. Omit to keep. |
+| `plantao.pendenciaComercial` | object | no | — | Lembretes internos por pendência. Padrões: desligada, campanha 10 min, regular 15 min, dono atual ou supervisão do grupo como alternativa. Omitir mantém. |
 | `plantao.regras` | object | no | — | Guard rules, all on by default. false lets the reply through. Omit to keep. |
 
+- plantao.pendenciaComercial {habilitada, campanhaMinutos, regularMinutos, destino} creates internal reminders for unanswered price, enrollment or human requests. Disabled by default; campaign 10 min, regular 15 min (1..1440), current owner or configured group supervisors. Independent of suggestionsEnabled; it sends nothing to the lead. Omitted fields keep saved values. Validate and apply the commercial-state migration before enabling.
 - plantao.carenciaDonoAtivo {janelaMinutos, esperaMinutos}: trigger A waits when the owner effectively replied in this conversation recently. Defaults 60 and 3 minutes; bounds 1..1440 and 1..180. Wait starts at human wait or assignment, whichever is later; an owner reply cancels that wait. Omitted keys keep saved values. No effect on B/C or distribution presence.
 - Requires ai_agents:write and settings.general. An enabled mode requires an active agent from this company. dailyLimit is 1–1000, default 60. In plantao, only confirmed sends consume the daily cap; in-flight and uncertain sends reserve capacity in the company time zone. Empty channels disables eligibility.
 - plantao sends to leads: trigger A first requires an active assigned seller with manual status different from online, then applies the group deadline (unless ausenteImediato) and carenciaDonoAtivo for a recent owner reply in this conversation; online always waits for C, regardless of heartbeat; trigger B sends one follow-up after retomadaMinutos (default 180) when the seller spoke last, with at least 60 min left in the 24 h window. It never reassigns or transfers. plantao.groups lists group UUIDs with supervisorUuids (company members) mentioned when the lead wants to close or asks for a discount. Omitting plantao keeps the saved configuration. Turn it off with mode sombra or desligado.
@@ -3665,8 +3669,11 @@ Read AI usage and estimated USD cost per agent and company-local day. Cache coun
 | --- | --- | --- | --- |
 | `agentUuid` | uuid | no | — |
 | `days` | integer | no | range 1–90 |
+| `functionUsageCursor` | string | no | length 1–4096 |
+| `functionUsageLimit` | integer | no | range 1–100 |
 
 - Requires ai_agents:read and settings.general. days is 1–90 (default 7), including today. Cache buckets describe classified turns only; old/provider-unknown rows remain unclassified. costBasis is catalog_estimate, never the provider invoice. Transport failures may have unobservable provider spend.
+- functionUsageLimit (default 50, maximum 100) bounds each detail list. Pass functionUsage.nextCursor as functionUsageCursor until null: it preserves independent daily and observed24h positions and the first request cutoff. Order is conversation ID then day, agent and function; page numbers are unsupported. The cursor inherits days and agent; supplied filters must match. functionUsage.totals, coverage and conservation cover the entire fixed window; never sum them across pages. Reads use bounded keyset batches. Later-created turns/messages are excluded; delivery and existing telemetry remain current snapshots, not historical versions.
 
 #### `get_ai_agent`
 
@@ -3717,7 +3724,7 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 | Parameter | Type | Required | Constraints | Description |
 | --- | --- | --- | --- | --- |
 | `name` | string | yes | length 1–120 | — |
-| `instructions` | string | yes | length 1–24000 | — |
+| `instructions` | string | yes | length 1–32000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3759,11 +3766,11 @@ Create an inactive AI agent. Name and instructions are required; other fields us
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
 - allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
 - storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
-- Instructions accept up to 24,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
+- Instructions accept up to 32,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order uses the published store checkout reservation period, with or without discounts (without a configured period: 15 minutes, or 5 with a discount cart). Expired proposals return proposal_expired and need a new summary. The summary and confirmation body highlight the actual net checkout installments, with the total in parentheses; legacy proposals retain their recorded presentation. It accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `test_ai_agent`
@@ -3782,7 +3789,7 @@ Run one paid, simulated AI turn for an active or inactive agent. No conversation
 | `agentUuid` | uuid | yes | — | — |
 | `messages` | object[] | yes | 1–40 items | — |
 | `contactName` | string | no | length 1–120 | — |
-| `instructionsOverride` | string | no | length 1–24000 | — |
+| `instructionsOverride` | string | no | length 1–32000 | — |
 | `knowledgeSourceUuidsOverride` | uuid[] | no | 0–200 items | Omitted uses agent links. An explicit empty list disables retrieval for this test. |
 | `nowOverride` | string | no | — | ISO 8601 with Z or an explicit UTC offset. Changes only the model context clock. |
 | `messages[].role` | `user` \| `assistant` | yes | — | — |
@@ -3836,7 +3843,7 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 | --- | --- | --- | --- | --- |
 | `agentUuid` | uuid | yes | — | — |
 | `name` | string | no | length 1–120 | — |
-| `instructions` | string | no | length 1–24000 | — |
+| `instructions` | string | no | length 1–32000 | — |
 | `description` | string \| null | no | — | — |
 | `model` | `gpt-4.1-mini` \| `gpt-4.1` \| `gpt-4.1-nano` \| `gpt-4o` \| `gpt-4o-mini` \| `gpt-5.4-mini` \| `gpt-5.4-nano` \| `gpt-5.6-sol` \| `gpt-6-astra` \| `claude-haiku-4-5` \| `claude-haiku-5-5` \| `claude-sonnet-5` \| `claude-sonnet-5-5` \| `claude-opus-5-5` \| `claude-opus-5` \| `claude-fable-5-1` \| `gemini-3.5-flash-lite` \| `gemini-3.8-flash` \| `gemini-2.5-pro` \| `grok-4.20-0309-non-reasoning` \| `grok-4.3` \| `grok-4.7` \| `gpt-4-turbo` \| `gpt-4` \| `gpt-3.5-turbo` \| `gpt-5` \| `gpt-5-mini` \| `gpt-5-nano` | no | — | — |
 | `temperature` | number | no | range 0–2 | — |
@@ -3878,11 +3885,11 @@ Patch AI agent configuration. Omitted fields are preserved, supplied arrays repl
 - allowedCompanyQueryUuids selects same-company live queries; only active queries become consultar_<name>. Empty removes all; omitted on update preserves the list. Use list_company_queries for UUIDs. No query executes when reading or saving configuration.
 - allowedStoreCategoryUuids limits what this agent can sell, enforced by the server in every store tool: search_store_catalog hides other products; prepare_store_order, create_store_order, manage_store_cart and checkout_store_order refuse them. Empty means no restriction; omitted on update preserves the list. Another company's category is rejected. A deleted category stays listed so the restriction never lifts by itself, and a warning says so. Orders created before a change continue normally. Use storeCategories from the configuration context for UUIDs.
 - storeSalesBlockScheduleUuid names a business schedule from list_business_schedules during which this agent refuses to close a sale, enforced by the server against the live schedule: prepare_store_order, create_store_order, manage_store_cart (create, update, link) and loose items in checkout_store_order return agent_sales_closed and the message goes back to the model. search_store_catalog and an order that already exists continue. Null means no restriction; omitted on update preserves it. A deleted schedule keeps refusing, and a warning says so. Use it when a signal written at conversation entry can outlive the hours it describes.
-- Instructions accept up to 24,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
+- Instructions accept up to 32,000 characters. Long instructions are less likely to be followed; move reference material to knowledge sources. contextWindowChars limits conversation history independently.
 - supportedEntries defaults to direct, ad, story_reply; an explicit empty list denies all. Public comment and mention require explicit user opt-in. The server also guards resumed turns.
 - manage_store_discount uses server-enforced financial policies and cannot alter its own limits. Only announce a discount after the tool succeeds. Discounted cart links require identity verification at confirmation.
 - manage_store_cart is an explicit permission for conversation-scoped drafts and links. It creates no order or stock reservation; retain cartUuid, version and operationKey on retries. Personal data is masked in results; never invent missing customer data.
-- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order prepares a proposal and accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
+- Store tools are explicit permissions: search_store_catalog reads the catalog; prepare_store_order uses the published store checkout reservation period, with or without discounts (without a configured period: 15 minutes, or 5 with a discount cart). Expired proposals return proposal_expired and need a new summary. The summary and confirmation body highlight the actual net checkout installments, with the total in parentheses; legacy proposals retain their recorded presentation. It accepts an optional intro (up to 300 characters), included as the first line inside the summary with its confirmation button, with no resend on replay. Do not announce the send before calling the tool. After confirmed delivery, write nothing else in this turn. create_store_order requires customer confirmation. checkout_store_order requires that confirmed order; ask Pix or card first if the customer has not chosen. Card needs neither email nor CPF/CNPJ in chat to provide the private link. Pix and bank slip (boleto) return status needs_buyer_data and missing without sending anything or providing a link until real buyer data (email and CPF/CNPJ) is complete. Ask for the missing fields together in one message and call it again for the same order with all buyer data. Complete data uses native payment when available, with the existing text/link fallback; card uses the private checkout link. Enable these tools only for the intended sales workflow.
 - Requires settings.general. Use UUIDs from configuration context; never guess references.
 
 #### `get_ai_summary_settings`

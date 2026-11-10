@@ -811,7 +811,7 @@
       "requiresPlan": "aiAgent",
       "mutates": true,
       "sideEffects": [
-        "Saves and audits configuration. New rules must be ensaio; only a later patch may activate. Active rules permit one paid text-only rewrite, then safe_text or the agent handoff group."
+        "Saves and audits configuration. New rules must be ensaio; only a later patch may activate. Active rules permit one paid text-only rewrite. An explicit keep marker preserves the original as kept. Failed correction uses safe_text or the agent handoff group; a second failure in the current flow session or a previously sent safe text holds delivery as held, with an internal note and silent handoff."
       ]
     },
     {

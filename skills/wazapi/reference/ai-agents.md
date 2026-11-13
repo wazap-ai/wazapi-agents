@@ -388,6 +388,7 @@ Replace AI duty configuration for this company. Requires an active company agent
 | `plantao.carenciaDonoAtivo` | object | no | — | Trigger A grace after effective owner activity in this conversation: window default 60 minutes, wait default 3 minutes from human wait start or assignment. An owner reply cancels that wait. Omitted keys keep saved values. |
 | `plantao.notaForaDoPlantao` | boolean | no | — | Use phase 1 internal notes when plantao is ineligible. Default false; omit to keep. |
 | `plantao.gatilhoRetomada` | boolean | no | — | Trigger B on/off: one follow-up when the lead went silent. Omit to keep. |
+| `plantao.pedidoPendente` | object | no | — | One system reminder per existing proposal/order, resending the saved confirmation button or payment link. Defaults: off, summary 30 min, payment 120 min, neutral text. Contact window and Meta 24 hour window always apply. Omitted keys keep saved values. |
 | `plantao.pendenciaComercial` | object | no | — | Lembretes internos por pendência. Padrões: desligada, campanha 10 min, regular 15 min, dono atual ou supervisão do grupo como alternativa. Omitir mantém. |
 | `plantao.regras` | object | no | — | Guard rules, all on by default. false lets the reply through. Omit to keep. |
 

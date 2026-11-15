@@ -301,12 +301,13 @@ Starts an active flow for one contact right now, without waiting for a keyword.
 
 **When to use.** To put a specific contact into a specific flow — onboarding after signup, a guided recovery, a flow the customer would otherwise have to type a keyword to reach.
 
-Start an active flow for a contact immediately, without waiting for a keyword. Address it with one of conversationUuid, contactUuid or phone; contactUuid and phone open a WhatsApp conversation when none exists, while conversationUuid also reaches Instagram and Messenger conversations (the flow must list that channel). Values passed in variables are readable inside the flow as {{vars.name}}. Reuse idempotencyKey on retries to avoid starting twice; omitting it creates a new execution. Returns flowStatus "active" when the flow is parked waiting for the contact to reply.
+Start an active flow for a contact immediately, without waiting for a keyword. Address it with one of conversationUuid, contactUuid or phone; contactUuid and phone open a WhatsApp conversation when none exists, while conversationUuid also reaches Instagram and Messenger conversations (the flow must list that channel). Values passed in variables are readable inside the flow as {{vars.name}}. Reuse idempotencyKey on retries to avoid starting twice; omitting it creates a new execution. Returns flowStatus "active" when the flow is parked waiting for the contact to reply. conflictPolicy defaults to proceed; reject refuses before any flow effect when the contact has an active conversation on the channel assigned to a human or group, or an active session of another flow. Returns FLOW_EXECUTION_CONFLICT with reason assigned_agent, assigned_group or active_session. Reusing the same idempotencyKey preserves the refusal even after the conflict is removed.
 
 | Parameter | Type | Required | Constraints |
 | --- | --- | --- | --- |
 | `flowUuid` | uuid | yes | — |
 | `idempotencyKey` | string | no | length 8–120 |
+| `conflictPolicy` | `proceed` \| `reject` | no | — |
 | `conversationUuid` | uuid | no | — |
 | `contactUuid` | uuid | no | — |
 | `phone` | string | no | length 5–20 |
@@ -317,6 +318,7 @@ Start an active flow for a contact immediately, without waiting for a keyword. A
 - Any flow session the contact already had is marked `superseded`.
 - Writes a `flow.executed` audit entry.
 
+- `conflictPolicy` defaults to `proceed`. Use `reject` to refuse under the contact execution lock before session replacement, conversation creation or sends when an active conversation on that channel has a human agent or group, or another flow has an active session. The error is `FLOW_EXECUTION_CONFLICT` with `reason: assigned_agent | assigned_group | active_session` (in that priority). The same `idempotencyKey` replays the same refusal even after the conflict disappears. A new key checks again. Sessions of the requested flow do not conflict; active sessions with no channel are treated as applying to this channel.
 - Address it with exactly one of `conversationUuid`, `contactUuid` or `phone`. The last two open a WhatsApp conversation when none exists, and `phone` also creates the contact. Instagram and Messenger conversations are reached only through `conversationUuid`, and the flow must list that channel in `supportedProviders`.
 - The flow must be `active`; a draft is refused. Use `update_flow_status` first.
 - If the flow opens with a free-form block (`send_text`, `send_buttons`, …) and the 24h WhatsApp window is closed, the call is refused rather than half-running. Send an approved template first with `send_template_message`, or build the flow to open with `send_template`.
